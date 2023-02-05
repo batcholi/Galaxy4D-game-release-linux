@@ -37,6 +37,11 @@ void main() {
 	
 	ray.normal = normalize(MODEL2WORLDNORMAL * surface.normal);
 	
+	if (surface.color.a < 1.0) {
+		ray.color = surface.color;
+		return;
+	}
+	
 	ApplyDefaultLighting();
 	
 	if (RAY_RECURSIONS == 0) {

@@ -19,7 +19,7 @@ float GetTrueDistanceFromDepthBuffer(float depth) {
 layout(local_size_x = 17, local_size_y = 17) in;
 
 void main() {
-	const int nbSamples = 64;
+	const int nbSamples = 32;
 	const float kernelSize = 0.5;
 	const float maxDistance = 200.0;
 	const float ambient = 0;
@@ -44,7 +44,7 @@ void main() {
 		float sampleDist = -viewSpaceSample.z;
 		float sampleDepthDist = GetTrueDistanceFromDepthBuffer(GetDepth(uv2));
 		if (sampleDist > sampleDepthDist) {
-			occluded += smoothstep(kernelSize*4, kernelSize, sampleDist - sampleDepthDist) * 2.0;
+			occluded += smoothstep(kernelSize*4, kernelSize, sampleDist - sampleDepthDist) * 1.5;
 		}
 	}
 	float ssao = clamp(occluded / float(nbSamples), 0, 1) * clamp(smoothstep(maxDistance, maxDistance/5, -viewSpacePos.z), 0, 1) * clamp(ssaoStrength, 0, 1);

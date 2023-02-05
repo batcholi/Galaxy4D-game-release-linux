@@ -8,7 +8,7 @@
 #define ACCUMULATOR_MAX_FRAME_INDEX_DIFF 2000
 #define USE_PATH_TRACED_GI
 #define USE_BLUE_NOISE
-#define PATH_TRACED_GI_MAX_BOUNCES 2 // should not be higher than MAX_RECURSIONS
+#define PATH_TRACED_GI_MAX_BOUNCES 3 // should not be higher than MAX_RECURSIONS
 
 
 uint HashGlobalPosition(uvec4 data) {
@@ -314,7 +314,7 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 		float shadowRayStart = originalRay.hitDistance * 0.001;
 		vec3 colorFilter = vec3(1);
 		float opacity = 0;
-		const float MAX_SHADOW_TRANSPARENCY_RAYS = 2;
+		const float MAX_SHADOW_TRANSPARENCY_RAYS = 4;
 		for (int j = 0; j < MAX_SHADOW_TRANSPARENCY_RAYS; ++j) {
 			if ((xenonRendererData.config.options & RENDER_OPTION_GROUND_TRUTH) != 0) { // #ifdef USE_SOFT_SHADOWS
 				#ifdef USE_BLUE_NOISE

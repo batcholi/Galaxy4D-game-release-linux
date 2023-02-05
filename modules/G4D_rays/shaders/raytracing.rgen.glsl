@@ -30,7 +30,14 @@ void main() {
 	ray.t2 = 0;
 	ray.color = vec4(0);
 	ray.ssao = 0;
-	traceRayEXT(tlas, 0/*flags*/, 0xff/*rayMask*/, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, initialRayPosition, renderer.cameraZNear, initialRayDirection, xenonRendererData.config.zFar, 0/*payloadIndex*/);
+	vec3 rayOrigin = initialRayPosition;
+	float transparency = 1.0;
+	do {
+		traceRayEXT(tlas, 0/*flags*/, 0xff/*rayMask*/, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, renderer.cameraZNear, initialRayDirection, xenonRendererData.config.zFar, 0/*payloadIndex*/);
+		rayOrigin += initialRayDirection * ray.hitDistance;
+		ray.color.rgb *= clamp(transparency, 0.0, 1.0);
+		transparency -= max(ray.color.a, 0.1);
+	} while (ray.color.a < 1.0 && transparency > 0.1 && ray.hitDistance > 0.0 && ray.hitDistance < 200.0);
 	vec4 color = ray.color;
 	
 	color.rgb *= pow(renderer.globalLightingFactor, 4);

@@ -2,7 +2,6 @@
 	#pragma once
 	
 	#include <glm/glm.hpp>
-	#include <xenon/vk/interface/Interface.h>
 
 	// https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/GL_EXT_shader_explicit_arithmetic_types.txt
 
@@ -58,7 +57,7 @@
 	#define aligned_f32mat4 alignas(16) glm::f32mat4
 	#define aligned_f64mat4 alignas(32) glm::f64mat4
 	
-	#define aligned_VkDeviceAddress alignas(8) VkDeviceAddress
+	#define aligned_VkDeviceAddress alignas(8) uint64_t
 
 	#define STATIC_ASSERT_ALIGNED16_SIZE(T, X) static_assert(sizeof(T) == X && sizeof(T) % 16 == 0);
 	#define STATIC_ASSERT_SIZE(T, X) static_assert(sizeof(T) == X);
