@@ -408,7 +408,7 @@ void ApplyDefaultLighting() {
 			vec3 bounceDirection = normalize(mix(reflectDirection, randomDirection, min(0.9, surface.roughness*surface.roughness)));
 			RAY_RECURSION_PUSH
 				// RAY_GI_PUSH
-					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, xenonRendererData.config.zFar, 0);
+					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, xenonRendererData.config.zFar, 0);
 				// RAY_GI_POP
 			RAY_RECURSION_POP
 			ray.color.rgb = pow(ray.color.rgb, vec3(mix(1.0, 0.5, surface.roughness)));
@@ -422,7 +422,7 @@ void ApplyDefaultLighting() {
 				vec3 rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 				vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
 				RAY_RECURSION_PUSH
-					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
+					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
 				RAY_RECURSION_POP
 				originalRay.color.rgb += ray.color.rgb * albedo * 0.9;
 				ray = originalRay;
