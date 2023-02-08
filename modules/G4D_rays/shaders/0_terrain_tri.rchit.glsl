@@ -53,40 +53,10 @@ void main() {
 	// Apply world space normal
 	ray.normal = normalize(MODEL2WORLDNORMAL * surface.normal);
 
+	ApplyDefaultLighting(false);
+	
 	// Store albedo and roughness (may remove this in the future)
 	if (RAY_RECURSIONS == 0) {
 		imageStore(img_primary_albedo_roughness, COORDS, vec4(surface.color.rgb, surface.roughness));
 	}
-	
-	// // Fresnel
-	// float fresnel = Fresnel((renderer.viewMatrix * vec4(ray.worldPosition, 1)).xyz, normalize(WORLD2VIEWNORMAL * ray.normal), surface.ior);
-	
-	vec3 directLighting = vec3(0);
-	vec3 ambient = vec3(0);
-	
-	// Lighting
-	if (RAY_RECURSIONS < RAY_MAX_RECURSION) {
-		// Direct lighting and shadows
-		if (surface.metallic < 1.0) {
-			directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * (1.0 - surface.metallic) * (RAY_IS_UNDERWATER? 0.5:1);
-		}
-		
-		// Simple Gi Approx by tracing a ray towards the surface normal for just the Atmosphere
-		if (surface.roughness > 0) {
-			RayPayload originalRay = ray;
-			RAY_RECURSION_PUSH
-				RAY_GI_PUSH
-					traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, originalRay.worldPosition, 0, originalRay.normal, 10000, 0);
-				RAY_GI_POP
-			RAY_RECURSION_POP
-			ambient += ray.color.rgb * surface.roughness;
-			ray = originalRay;
-		}
-	}
-	
-	// Apply final color
-	ray.color.rgb = 
-		+ ambient * surface.color.rgb
-		+ directLighting * surface.color.rgb
-	;
 }
