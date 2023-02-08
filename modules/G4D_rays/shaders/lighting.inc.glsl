@@ -8,7 +8,7 @@
 #define ACCUMULATOR_MAX_FRAME_INDEX_DIFF 2000
 #define USE_PATH_TRACED_GI
 #define USE_BLUE_NOISE
-#define PATH_TRACED_GI_MAX_BOUNCES 3 // should not be higher than MAX_RECURSIONS
+#define PATH_TRACED_GI_MAX_BOUNCES 4 // should not be higher than MAX_RECURSIONS
 
 
 uint HashGlobalPosition(uvec4 data) {
@@ -374,7 +374,7 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 	}
 #endif
 
-void ApplyDefaultLighting() {
+void ApplyDefaultLighting(bool useGiHashTable) {
 	bool rayIsShadow = RAY_IS_SHADOW;
 	uint recursions = RAY_RECURSIONS;
 	bool rayIsGi = RAY_IS_GI;
@@ -408,7 +408,7 @@ void ApplyDefaultLighting() {
 			vec3 bounceDirection = normalize(mix(reflectDirection, randomDirection, min(0.9, surface.roughness*surface.roughness)));
 			RAY_RECURSION_PUSH
 				// RAY_GI_PUSH
-					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, xenonRendererData.config.zFar, 0);
+					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, xenonRendererData.config.zFar, 0);
 				// RAY_GI_POP
 			RAY_RECURSION_POP
 			ray.color.rgb = pow(ray.color.rgb, vec3(mix(1.0, 0.5, surface.roughness)));
@@ -422,42 +422,57 @@ void ApplyDefaultLighting() {
 				vec3 rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 				vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
 				RAY_RECURSION_PUSH
-					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
+					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
 				RAY_RECURSION_POP
 				originalRay.color.rgb += ray.color.rgb * albedo * 0.9;
 				ray = originalRay;
 			}
 		} else {// Global Illumination
-			bool useGi = !rayIsUnderWater;
-			const float GI_DRAW_MAX_DISTANCE = 100;
-			const float GI_RAY_MAX_DISTANCE = 200;
-			const vec3 rayOrigin = ray.worldPosition + ray.normal * 0.001;
-			const vec3 facingLocalPosition = ray.localPosition + surface.normal * GI_PROBE_SIZE * 0.5;
-			const uint giIndex = GetGiIndex(surface.renderableIndex, facingLocalPosition, 0);
-			const uint giIndex1 = GetGiIndex(surface.renderableIndex, facingLocalPosition, 1);
-			seed += recursions * RAY_MAX_RECURSION;
-			if (useGi && ray.hitDistance < GI_DRAW_MAX_DISTANCE && recursions < RAY_MAX_RECURSION && LockAmbientLighting(giIndex)) {
-				RayPayload originalRay = ray;
-				ray.color.rgb = vec3(0);
-				vec3 bounceDirection = RandomPointOnHemisphere(originalRay.normal) ;// normalize(originalRay.normal + RandomInUnitHemiSphere(seed, originalRay.normal));
-				float nDotL = clamp(dot(originalRay.normal, bounceDirection), 0, 1);
-				RAY_RECURSION_PUSH
-					RAY_GI_PUSH
-						traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, GI_RAY_MAX_DISTANCE, 0);
-					RAY_GI_POP
-				RAY_RECURSION_POP
-				WriteAmbientLighting(giIndex, surface.renderableIndex, facingLocalPosition, ray.color.rgb * (1-nDotL) * renderer.globalLightingFactor);
-				UnlockAmbientLighting(giIndex);
-				ray = originalRay;
-			}
-			if (!rayIsGi) {
-				float giFactor = useGi ? smoothstep(GI_DRAW_MAX_DISTANCE, 0, ray.hitDistance) : 0;
-				if (useGi && ray.hitDistance < GI_DRAW_MAX_DISTANCE) {
-					vec3 ambient = GetAmbientLighting(surface.renderableIndex, facingLocalPosition) / 3.1415 * renderer.globalLightingFactor;
-					ray.color.rgb += albedo * ambient * giFactor;
-					if (recursions == 0 && xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_GLOBAL_ILLUMINATION) {
-						imageStore(img_normal_or_debug, COORDS, vec4(ambient, 1));
+			if (useGiHashTable) {
+				bool useGi = !rayIsUnderWater;
+				const float GI_DRAW_MAX_DISTANCE = 100;
+				const float GI_RAY_MAX_DISTANCE = 200;
+				const vec3 rayOrigin = ray.worldPosition + ray.normal * 0.001;
+				const vec3 facingLocalPosition = ray.localPosition + surface.normal * GI_PROBE_SIZE * 0.5;
+				const uint giIndex = GetGiIndex(surface.renderableIndex, facingLocalPosition, 0);
+				const uint giIndex1 = GetGiIndex(surface.renderableIndex, facingLocalPosition, 1);
+				seed += recursions * RAY_MAX_RECURSION;
+				if (useGi && ray.hitDistance < GI_DRAW_MAX_DISTANCE && recursions < RAY_MAX_RECURSION && LockAmbientLighting(giIndex)) {
+					RayPayload originalRay = ray;
+					ray.color.rgb = vec3(0);
+					vec3 bounceDirection = RandomPointOnHemisphere(originalRay.normal) ;// normalize(originalRay.normal + RandomInUnitHemiSphere(seed, originalRay.normal));
+					float nDotL = clamp(dot(originalRay.normal, bounceDirection), 0, 1);
+					RAY_RECURSION_PUSH
+						RAY_GI_PUSH
+							traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, GI_RAY_MAX_DISTANCE, 0);
+						RAY_GI_POP
+					RAY_RECURSION_POP
+					WriteAmbientLighting(giIndex, surface.renderableIndex, facingLocalPosition, ray.color.rgb * (1-nDotL) * renderer.globalLightingFactor);
+					UnlockAmbientLighting(giIndex);
+					ray = originalRay;
+				}
+				if (!rayIsGi) {
+					float giFactor = useGi ? smoothstep(GI_DRAW_MAX_DISTANCE, 0, ray.hitDistance) : 0;
+					if (useGi && ray.hitDistance < GI_DRAW_MAX_DISTANCE) {
+						vec3 ambient = GetAmbientLighting(surface.renderableIndex, facingLocalPosition) / 3.1415 * renderer.globalLightingFactor;
+						ray.color.rgb += albedo * ambient * giFactor;
+						if (recursions == 0 && xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_GLOBAL_ILLUMINATION) {
+							imageStore(img_normal_or_debug, COORDS, vec4(ambient, 1));
+						}
 					}
+				}
+			} else {
+				// Simple Gi Approx by tracing a ray towards the surface normal for just the Atmosphere
+				if (surface.roughness > 0) {
+					RayPayload originalRay = ray;
+					RAY_RECURSION_PUSH
+						RAY_GI_PUSH
+							traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, originalRay.worldPosition, 0, originalRay.normal, 10000, 0);
+						RAY_GI_POP
+					RAY_RECURSION_POP
+					ray.color.rgb = pow(ray.color.rgb, vec3(mix(1.0, 0.5, surface.roughness)));
+					originalRay.color.rgb += ray.color.rgb * albedo * surface.roughness;
+					ray = originalRay;
 				}
 			}
 		}

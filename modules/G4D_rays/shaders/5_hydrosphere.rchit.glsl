@@ -19,6 +19,7 @@ void SetHitWater() {
 	ray.primitiveIndex = gl_PrimitiveID;
 	ray.localPosition = gl_ObjectRayOriginEXT + gl_ObjectRayDirectionEXT * gl_HitTEXT;
 	ray.worldPosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+	ray.color.a = 1;
 }
 
 #define RAIN_DROP_HASHSCALE1 .1031
@@ -249,8 +250,6 @@ void main() {
 		
 		RAY_UNDERWATER_PUSH
 	}
-	
-	ray.color.a = 1;
 	
 	// Debug Time
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_RAYHIT_TIME) {
