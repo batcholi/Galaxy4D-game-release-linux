@@ -20,8 +20,7 @@ layout(local_size_x = 17, local_size_y = 17) in;
 
 void main() {
 	const int nbSamples = 32;
-	const float kernelSize = 0.5;
-	const float maxDistance = 200.0;
+	const float maxDistance = 100.0;
 	const float ambient = 0;
 	
 	const ivec2 coords = ivec2(gl_GlobalInvocationID);
@@ -34,6 +33,7 @@ void main() {
 	const vec2 uv = vec2(coords) / imageSize(img_depth);
 	const vec3 viewSpacePos = GetViewSpacePositionFromDepthAndUV(GetDepth(uv), uv);
 	if (-viewSpacePos.z > maxDistance) return;
+	float kernelSize = mix(0.5, 5.0, smoothstep(2.0, maxDistance, -viewSpacePos.z));
 	
 	float occluded = 0;
 	for (int i = 0; i < nbSamples; ++i) {

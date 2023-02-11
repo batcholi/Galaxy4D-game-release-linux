@@ -196,7 +196,7 @@
         {
             "bufferView" : 4,
             "componentType" : 5126,
-            "count" : 234,
+            "count" : 242,
             "max" : [
                 4.5139360427856445,
                 2.2569680213928223,
@@ -212,21 +212,21 @@
         {
             "bufferView" : 5,
             "componentType" : 5123,
-            "count" : 822,
+            "count" : 834,
             "type" : "SCALAR"
         },
         {
             "bufferView" : 6,
             "componentType" : 5126,
-            "count" : 266,
+            "count" : 286,
             "max" : [
                 4,
-                2.151716470718384,
+                2.1561403274536133,
                 4.5139360427856445
             ],
             "min" : [
                 -4,
-                -2.151716470718384,
+                -2.1561403274536133,
                 -4.5139360427856445
             ],
             "type" : "VEC3"
@@ -234,7 +234,7 @@
         {
             "bufferView" : 7,
             "componentType" : 5123,
-            "count" : 774,
+            "count" : 834,
             "type" : "SCALAR"
         }
     ],
@@ -265,32 +265,32 @@
         },
         {
             "buffer" : 0,
-            "byteLength" : 2808,
+            "byteLength" : 2904,
             "byteOffset" : 552,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 1644,
-            "byteOffset" : 3360,
+            "byteLength" : 1668,
+            "byteOffset" : 3456,
             "target" : 34963
         },
         {
             "buffer" : 0,
-            "byteLength" : 3192,
-            "byteOffset" : 5004,
+            "byteLength" : 3432,
+            "byteOffset" : 5124,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 1548,
-            "byteOffset" : 8196,
+            "byteLength" : 1668,
+            "byteOffset" : 8556,
             "target" : 34963
         }
     ],
     "buffers" : [
         {
-            "byteLength" : 9744,
+            "byteLength" : 10224,
             "uri" : "bigpit.bin"
         }
     ]
