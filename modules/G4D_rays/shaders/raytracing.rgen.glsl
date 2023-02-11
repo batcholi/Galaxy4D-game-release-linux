@@ -2,6 +2,7 @@
 #include "common.inc.glsl"
 
 layout(location = 0) rayPayloadEXT RayPayload ray;
+layout(location = 1) rayPayloadEXT RayPayload glassReflectionRay;
 
 void main() {
 	const ivec2 pixelInMiddleOfScreen = ivec2(gl_LaunchSizeEXT.xy) / 2;
@@ -32,13 +33,31 @@ void main() {
 	ray.ssao = 0;
 	vec3 rayOrigin = initialRayPosition;
 	float transparency = 1.0;
+	bool glassReflection = false;
+	vec3 glassReflectionOrigin;
+	vec3 glassReflectionDirection;
+	float glassReflectionStrength;
 	do {
 		traceRayEXT(tlas, 0/*flags*/, 0xff/*rayMask*/, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, renderer.cameraZNear, initialRayDirection, xenonRendererData.config.zFar, 0/*payloadIndex*/);
 		rayOrigin += initialRayDirection * ray.hitDistance;
 		ray.color.rgb *= clamp(transparency, 0.0, 1.0);
 		transparency -= max(ray.color.a, 0.1);
+		// Reflections on Glass
+		if (!glassReflection && ray.color.a < 1.0 && ray.hitDistance > 0.0 && ray.hitDistance < 200.0) {
+			glassReflection = true;
+			glassReflectionStrength = Fresnel((renderer.viewMatrix * vec4(ray.worldPosition, 1)).xyz, normalize(WORLD2VIEWNORMAL * ray.normal), 1.45);
+			glassReflectionOrigin = ray.worldPosition + ray.normal * max(2.0, ray.hitDistance) * EPSILON;
+			glassReflectionDirection = reflect(initialRayDirection, ray.normal);
+		}
 	} while (ray.color.a < 1.0 && transparency > 0.1 && ray.hitDistance > 0.0 && ray.hitDistance < 200.0);
 	vec4 color = ray.color;
+
+	// Reflections on Glass
+	if (glassReflection) {
+		traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, glassReflectionOrigin, 0, glassReflectionDirection, xenonRendererData.config.zFar, 1);
+		color.rgb = mix(color.rgb, glassReflectionRay.color.rgb, glassReflectionStrength);
+		ray.ssao = 0;
+	}
 	
 	color.rgb *= pow(renderer.globalLightingFactor, 4);
 	color.a = mix(1, color.a, renderer.globalLightingFactor);
