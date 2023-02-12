@@ -43,7 +43,7 @@ void main() {
 		ray.color.rgb *= clamp(transparency, 0.0, 1.0);
 		transparency -= max(ray.color.a, 0.1);
 		// Reflections on Glass
-		if (!glassReflection && ray.color.a < 1.0 && ray.hitDistance > 0.0 && ray.hitDistance < 200.0) {
+		if ((renderer.options & RENDERER_OPTION_GLASS_REFLECTIONS) != 0 && !glassReflection && ray.color.a < 1.0 && ray.hitDistance > 0.0 && ray.hitDistance < 200.0) {
 			glassReflection = true;
 			glassReflectionStrength = Fresnel((renderer.viewMatrix * vec4(ray.worldPosition, 1)).xyz, normalize(WORLD2VIEWNORMAL * ray.normal), 1.45);
 			glassReflectionOrigin = ray.worldPosition + ray.normal * max(2.0, ray.hitDistance) * EPSILON;
@@ -137,11 +137,8 @@ void main() {
 		case RENDERER_DEBUG_VIEWMODE_DISTANCE:
 			imageStore(img_normal_or_debug, COORDS, vec4(hitSomething? Heatmap(pow(ray.hitDistance / 1000 * xenonRendererData.config.debugViewScale, 0.4)) : vec3(0), 1));
 			break;
-		case RENDERER_DEBUG_VIEWMODE_REFLECTIVITY:
-			// // imageStore(img_normal_or_debug, COORDS, vec4(Heatmap( 0 ), 1));
-			break;
 		case RENDERER_DEBUG_VIEWMODE_TRANSPARENCY:
-			imageStore(img_normal_or_debug, COORDS, vec4(vec3(1 - ray.color.a), 1));
+			imageStore(img_normal_or_debug, COORDS, vec4(vec3(transparency), 1));
 			break;
 		case RENDERER_DEBUG_VIEWMODE_AIM_RENDERABLE:
 			if (renderer.aim.tlasInstanceIndex == ray.renderableIndex) {

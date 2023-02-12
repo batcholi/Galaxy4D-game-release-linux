@@ -125,7 +125,7 @@ void main() {
 		vec3 reflection = vec3(0);
 		vec3 refraction = vec3(0);
 		
-		if (waterWavesStrength > 0 && gl_HitTEXT < bigWavesMaxDistance) {
+		if ((renderer.options & RENDERER_OPTION_WATER_WAVES) != 0 && waterWavesStrength > 0 && gl_HitTEXT < bigWavesMaxDistance) {
 			vec3 wavesPosition = hitPoint1;
 			APPLY_NORMAL_BUMP_NOISE(WaterWaves, wavesPosition, surfaceNormal, waterWavesStrength * 0.05)
 		}
@@ -133,26 +133,40 @@ void main() {
 		
 		// Reflection on top of water surface
 		vec3 reflectDir = normalize(reflect(gl_WorldRayDirectionEXT, surfaceNormal));
-		RAY_RECURSION_PUSH
-			ray.color = vec4(0);
-			traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, reflectDir, xenonRendererData.config.zFar, 0);
-		RAY_RECURSION_POP
-		reflection = ray.color.rgb;
+		if ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0) {
+			RAY_RECURSION_PUSH
+				ray.color = vec4(0);
+				traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, reflectDir, xenonRendererData.config.zFar, 0);
+			RAY_RECURSION_POP
+			reflection = ray.color.rgb;
+		} else {
+			reflection = vec3(0.7,0.8,1.0);
+			RayPayload originalRay = ray;
+			RAY_RECURSION_PUSH
+				RAY_GI_PUSH
+					traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, reflectDir, 10000, 0);
+				RAY_GI_POP
+			RAY_RECURSION_POP
+			reflection = ray.color.rgb * 0.5;
+			ray = originalRay;
+		}
 		
 		// See through water (refraction)
 		vec3 rayDirection = gl_WorldRayDirectionEXT;
-		if (Refract(rayDirection, surfaceNormal, WATER_IOR)) {
-			RAY_RECURSION_PUSH
-				RAY_UNDERWATER_PUSH
+		if ((renderer.options & RENDERER_OPTION_WATER_TRANSPARENCY) != 0) {
+			if ((renderer.options & RENDERER_OPTION_WATER_REFRACTION) == 0 || Refract(rayDirection, surfaceNormal, WATER_IOR)) {
+				RAY_RECURSION_PUSH
+					RAY_UNDERWATER_PUSH
+						ray.color = vec4(0);
+						traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, rayDirection, WATER_MAX_LIGHT_DEPTH, 0);
+					RAY_UNDERWATER_POP
+				RAY_RECURSION_POP
+				if (ray.hitDistance == -1) {
+					ray.hitDistance = WATER_MAX_LIGHT_DEPTH;
 					ray.color = vec4(0);
-					traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, rayDirection, WATER_MAX_LIGHT_DEPTH, 0);
-				RAY_UNDERWATER_POP
-			RAY_RECURSION_POP
-			if (ray.hitDistance == -1) {
-				ray.hitDistance = WATER_MAX_LIGHT_DEPTH;
-				ray.color = vec4(0);
+				}
+				refraction = ray.color.rgb * (1-clamp(ray.hitDistance / WATER_MAX_LIGHT_DEPTH, 0, 1));
 			}
-			refraction = ray.color.rgb * (1-clamp(ray.hitDistance / WATER_MAX_LIGHT_DEPTH, 0, 1));
 		}
 		
 		ray.hitDistance = gl_HitTEXT;
@@ -179,7 +193,9 @@ void main() {
 			float distanceToSurface = t2;
 			vec3 wavePosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * distanceToSurface;
 			surfaceNormal = downDir;
-			if (waterWavesStrength > 0) APPLY_NORMAL_BUMP_NOISE(WaterWaves, wavePosition, surfaceNormal, waterWavesStrength * 0.05)
+			if ((renderer.options & RENDERER_OPTION_WATER_WAVES) != 0 && waterWavesStrength > 0) {
+				APPLY_NORMAL_BUMP_NOISE(WaterWaves, wavePosition, surfaceNormal, waterWavesStrength * 0.05)
+			}
 			
 			// See through water (underwater looking up, possibly at surface)
 			vec3 rayPosition = gl_WorldRayOriginEXT;
@@ -195,13 +211,21 @@ void main() {
 				// Surface refraction seen from underwater
 				rayPosition += rayDirection * distanceToSurface;
 				float maxRayDistance = xenonRendererData.config.zFar;
-				if (!Refract(rayDirection, surfaceNormal, 1.0 / WATER_IOR)) {
-					maxRayDistance = maxLightDepth;
+				if ((renderer.options & RENDERER_OPTION_WATER_TRANSPARENCY) != 0) {
+					if (!Refract(rayDirection, surfaceNormal, 1.0 / WATER_IOR)) {
+						maxRayDistance = maxLightDepth;
+					}
+					RAY_RECURSION_PUSH
+						ray.color = vec4(0);
+						if ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0) {
+							traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
+						} else {
+							RAY_GI_PUSH
+								traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
+							RAY_GI_POP
+						}
+					RAY_RECURSION_POP
 				}
-				RAY_RECURSION_PUSH
-					ray.color = vec4(0);
-					traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
-				RAY_RECURSION_POP
 				if (maxRayDistance == maxLightDepth) {
 					if (ray.hitDistance == -1) {
 						ray.hitDistance = maxLightDepth;
