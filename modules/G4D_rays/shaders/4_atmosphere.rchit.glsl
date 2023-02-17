@@ -170,7 +170,7 @@ void main() {
 	// }
 	
 	ray.color.rgb += fog.rgb * fog.a * renderer.globalLightingFactor;
-	ray.color.a += pow(fog.a, 8);
+	ray.color.a += pow(fog.a, 32);
 	
 	// Debug Time
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_RAYHIT_TIME) {

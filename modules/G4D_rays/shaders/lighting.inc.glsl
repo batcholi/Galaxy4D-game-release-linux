@@ -268,6 +268,7 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 		float distanceToLightSurface = length(relativeLightPosition) - lightSource.innerRadius - gl_HitTEXT * EPSILON;
 		if (distanceToLightSurface <= 0.001) {
 			directLighting += lightSource.color * lightSource.power;
+			ray.ssao = 0;
 		} else if (nDotL > 0 && distanceToLightSurface < lightSource.maxDistance) {
 			float effectiveLightIntensity = max(0, lightSource.power / (4.0 * PI * distanceToLightSurface*distanceToLightSurface + 1) - LIGHT_LUMINOSITY_VISIBLE_THRESHOLD) * clamp(nDotL, 0, 1);
 			uint index = nbLights;
@@ -296,7 +297,7 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 			if (nbLights < NB_LIGHTS) ++nbLights;
 			#ifndef /*NOT*/SORT_LIGHTS
 				else {
-					rayQueryTerminateEXT(rayQuery);
+					rayQueryTerminateEXT(q);
 					break;
 				}
 			#endif
@@ -339,12 +340,20 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 				if (ray.hitDistance == -1) {
 					// lit
 					directLighting += lightsColor[i] * lightsPower[i] * colorFilter * (1 - clamp(opacity,0,1));
-					#ifdef SORT_LIGHTS
+					
+					// #ifdef SORT_LIGHTS
+					// 	ray = originalRay;
+					// 	return directLighting;
+					// #else
+					// 	break;
+					// #endif
+					
+					if (++usefulLights == 2) {
 						ray = originalRay;
 						return directLighting;
-					#else
-						break;
-					#endif
+					}
+					break;
+					
 				} else {
 					colorFilter *= ray.color.rgb;
 					opacity += max(0.05, ray.color.a);
@@ -393,7 +402,7 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 	// Direct Lighting
 	vec3 directLighting = vec3(0);
 	if (recursions < RAY_MAX_RECURSION && surface.metallic < 1.0) {
-		directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * (albedo + fresnel * surface.roughness * (1-surface.metallic)) * (RAY_IS_UNDERWATER? 0.5:1);
+		directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * albedo ;// (albedo + pow(fresnel, 2) * surface.roughness * (1-surface.metallic)) * (RAY_IS_UNDERWATER? 0.5:1);
 	}
 	ray.color = vec4(mix(directLighting * renderer.globalLightingFactor, vec3(0), surface.metallic), 1);
 	
@@ -480,6 +489,12 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 	
 	// Emission
 	ray.color.rgb += surface.emission * renderer.globalLightingFactor;
+	if (dot(surface.emission,surface.emission) > 0) ray.ssao = 0;
+	
+	// Ambient
+	if (!rayIsUnderWater) {
+		ray.color.rgb += vec3(0.02) * albedo * smoothstep(1000, 0, ray.hitDistance);
+	}
 	
 	// Debug UV1
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_UVS) {

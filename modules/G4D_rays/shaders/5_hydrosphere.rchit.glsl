@@ -6,6 +6,7 @@
 #define WATER_MAX_LIGHT_DEPTH_VERTICAL 256
 #define WATER_IOR 1.33
 #define WATER_OPACITY 0.1
+#define WATER_TINT vec3(0.2,0.3,0.4)
 
 hitAttributeEXT hit {
 	float t1;
@@ -133,23 +134,13 @@ void main() {
 		
 		// Reflection on top of water surface
 		vec3 reflectDir = normalize(reflect(gl_WorldRayDirectionEXT, surfaceNormal));
-		if ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0) {
-			RAY_RECURSION_PUSH
-				ray.color = vec4(0);
-				traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, reflectDir, xenonRendererData.config.zFar, 0);
-			RAY_RECURSION_POP
-			reflection = ray.color.rgb;
-		} else {
-			reflection = vec3(0.7,0.8,1.0);
-			RayPayload originalRay = ray;
-			RAY_RECURSION_PUSH
-				RAY_GI_PUSH
-					traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, reflectDir, 10000, 0);
-				RAY_GI_POP
-			RAY_RECURSION_POP
-			reflection = ray.color.rgb * 0.5;
-			ray = originalRay;
-		}
+		uint reflectionMask = ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0)? (~RAYTRACE_MASK_HYDROSPHERE) : RAYTRACE_MASK_ATMOSPHERE;
+		RAY_RECURSION_PUSH
+			RAY_GI_PUSH
+				traceRayEXT(tlas, 0, reflectionMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, reflectDir, 10000, 0);
+			RAY_GI_POP
+		RAY_RECURSION_POP
+		reflection = ray.color.rgb;
 		
 		// See through water (refraction)
 		vec3 rayDirection = gl_WorldRayDirectionEXT;
@@ -165,7 +156,7 @@ void main() {
 					ray.hitDistance = WATER_MAX_LIGHT_DEPTH;
 					ray.color = vec4(0);
 				}
-				refraction = ray.color.rgb * (1-clamp(ray.hitDistance / WATER_MAX_LIGHT_DEPTH, 0, 1));
+				refraction = ray.color.rgb * WATER_TINT * (1-clamp(ray.hitDistance / WATER_MAX_LIGHT_DEPTH, 0, 1));
 			}
 		}
 		
@@ -270,7 +261,7 @@ void main() {
 		const vec3 dir = gl_WorldRayDirectionEXT;
 		const float distFactor = clamp(ray.hitDistance / maxLightDepth, 0 ,1);
 		const float fogStrength = max(WATER_OPACITY, pow(distFactor, 0.25));
-		ray.color.rgb = mix(ray.color.rgb, vec3(0), pow(clamp(ray.hitDistance / maxLightDepth, 0, 1), 0.5));
+		ray.color.rgb = mix(ray.color.rgb * WATER_TINT, vec3(0), pow(clamp(ray.hitDistance / maxLightDepth, 0, 1), 0.5));
 		
 		RAY_UNDERWATER_PUSH
 	}

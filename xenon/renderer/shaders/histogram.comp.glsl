@@ -7,7 +7,7 @@ ivec2 compute_coord = ivec2(gl_GlobalInvocationID.xy);
 
 void main() {
 	ivec2 offset = imageSize(img_thumbnail) / 4;
-	vec4 color = clamp(imageLoad(img_thumbnail, compute_coord + offset), vec4(0), vec4(vec3(1e5), 1));
+	vec4 color = clamp(imageLoad(img_thumbnail, compute_coord + offset), vec4(0.1), vec4(vec3(100), 1));
 	
 	atomicAdd(xenonRendererData.histogram_total_luminance.r, color.r);
 	atomicAdd(xenonRendererData.histogram_total_luminance.g, color.g);
