@@ -59,16 +59,18 @@
             "primitives" : [
                 {
                     "attributes" : {
-                        "POSITION" : 0
+                        "POSITION" : 0,
+                        "TEXCOORD_0" : 1
                     },
-                    "indices" : 1,
+                    "indices" : 2,
                     "material" : 0
                 },
                 {
                     "attributes" : {
-                        "POSITION" : 2
+                        "POSITION" : 3,
+                        "TEXCOORD_0" : 4
                     },
-                    "indices" : 3,
+                    "indices" : 5,
                     "material" : 1
                 }
             ]
@@ -93,14 +95,20 @@
         },
         {
             "bufferView" : 1,
+            "componentType" : 5126,
+            "count" : 12,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 2,
             "componentType" : 5123,
             "count" : 30,
             "type" : "SCALAR"
         },
         {
-            "bufferView" : 2,
+            "bufferView" : 3,
             "componentType" : 5126,
-            "count" : 400,
+            "count" : 451,
             "max" : [
                 0.3459080457687378,
                 0.34680965542793274,
@@ -114,7 +122,13 @@
             "type" : "VEC3"
         },
         {
-            "bufferView" : 3,
+            "bufferView" : 4,
+            "componentType" : 5126,
+            "count" : 451,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 5,
             "componentType" : 5123,
             "count" : 1422,
             "type" : "SCALAR"
@@ -129,26 +143,38 @@
         },
         {
             "buffer" : 0,
-            "byteLength" : 60,
+            "byteLength" : 96,
             "byteOffset" : 144,
+            "target" : 34962
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 60,
+            "byteOffset" : 240,
             "target" : 34963
         },
         {
             "buffer" : 0,
-            "byteLength" : 4800,
-            "byteOffset" : 204,
+            "byteLength" : 5412,
+            "byteOffset" : 300,
+            "target" : 34962
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 3608,
+            "byteOffset" : 5712,
             "target" : 34962
         },
         {
             "buffer" : 0,
             "byteLength" : 2844,
-            "byteOffset" : 5004,
+            "byteOffset" : 9320,
             "target" : 34963
         }
     ],
     "buffers" : [
         {
-            "byteLength" : 7848,
+            "byteLength" : 12164,
             "uri" : "console.bin"
         }
     ]

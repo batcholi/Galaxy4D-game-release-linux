@@ -82,7 +82,7 @@ struct GeometryInfo {
 	aligned_f32vec4 color;
 	aligned_f32vec3 emission;
 	aligned_uint32_t surfaceIndex;
-	aligned_uint64_t data;
+	aligned_uint64_t data; // default is a pack of 4x uint16 texture indices (albedo/alpha, normal/bump, metallic/roughness, emission)
 	aligned_float32_t metallic;
 	aligned_float32_t roughness;
 	aligned_VkDeviceAddress uv1;
@@ -119,7 +119,8 @@ BUFFER_REFERENCE_STRUCT(16) AimBuffer {
 	aligned_f32vec4 color;
 	aligned_f32vec3 viewSpaceHitNormal;
 	aligned_uint32_t tlasInstanceIndex;
-	aligned_f32vec3 _unused;
+	aligned_f32vec2 uv;
+	aligned_uint32_t _unused;
 	aligned_uint32_t geometryIndex;
 };
 STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)

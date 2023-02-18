@@ -12,11 +12,8 @@ void main() {
 	ray.t2 = 0;
 	ray.ssao = 1;
 	
-	ENTITY_COMPUTE_SURFACE_NORMAL
+	ENTITY_COMPUTE_SURFACE
 	
-	surface.color = ComputeSurfaceColor(ray.localPosition) * GEOMETRY.info.color;
-	surface.uv1 = ComputeSurfaceUV1(ray.localPosition);
-	surface.uv2 = ComputeSurfaceUV2(ray.localPosition);
 	surface.distance = ray.hitDistance;
 	surface.localPosition = ray.localPosition;
 	surface.metallic = GEOMETRY.info.metallic;
@@ -46,5 +43,8 @@ void main() {
 	
 	if (RAY_RECURSIONS == 0) {
 		imageStore(img_primary_albedo_roughness, COORDS, vec4(surface.color.rgb, surface.roughness));
+		if (COORDS == ivec2(gl_LaunchSizeEXT.xy) / 2) {
+			renderer.aim.uv = surface.uv1;
+		}
 	}
 }
