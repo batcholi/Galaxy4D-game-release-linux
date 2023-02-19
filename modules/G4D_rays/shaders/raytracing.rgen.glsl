@@ -13,6 +13,10 @@ void main() {
 	const vec3 initialRayPosition = inverse(renderer.viewMatrix)[3].xyz;
 	vec3 viewDir = normalize(vec4(inverse(mat4(xenonRendererData.config.projectionMatrixWithTAA)) * vec4(uv*2-1, 1, 1)).xyz);
 	
+	if (isMiddleOfScreen) {
+		renderer.aim.monitorIndex = 0;
+	}
+	
 	// Warp drive
 	if (renderer.warp > 0) {
 		const float centerFactor = length((pixelCenter/screenSize-0.5) * vec2(screenSize.x / screenSize.y, 1));

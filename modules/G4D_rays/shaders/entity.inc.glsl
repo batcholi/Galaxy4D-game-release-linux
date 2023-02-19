@@ -39,12 +39,15 @@ void main() {
 		return;
 	}
 	
-	ApplyDefaultLighting(true);
-	
 	if (RAY_RECURSIONS == 0) {
 		imageStore(img_primary_albedo_roughness, COORDS, vec4(surface.color.rgb, surface.roughness));
 		if (COORDS == ivec2(gl_LaunchSizeEXT.xy) / 2) {
 			renderer.aim.uv = surface.uv1;
+			if (surface.renderableData != 0) {
+				renderer.aim.monitorIndex = RenderableData(surface.renderableData)[surface.geometryIndex].monitorIndex;
+			}
 		}
 	}
+	
+	ApplyDefaultLighting(true);
 }

@@ -43,7 +43,7 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) RenderableData {
 	aligned_float32_t pbrMix;
 	aligned_float32_t pbrMetallic;
 	aligned_float32_t pbrRoughness;
-	aligned_float32_t _unused; // reserved for future use
+	aligned_uint32_t monitorIndex; // matches with a texture index, 0 means not a monitor and don't load any texture
 	aligned_f32vec4 customVec4Data; // unused in game, reserved for modules
 };
 STATIC_ASSERT_ALIGNED16_SIZE(RenderableData, 64)
@@ -105,7 +105,7 @@ STATIC_ASSERT_ALIGNED16_SIZE(GeometryData, 128)
 
 BUFFER_REFERENCE_STRUCT_READONLY(16) RenderableInstanceData {
 	BUFFER_REFERENCE_ADDR(GeometryData) geometries;
-	aligned_uint64_t data; // custom data defined per-shader
+	aligned_uint64_t data; // custom data defined per-shader (defaults to an array of RenderableData per geometry)
 };
 STATIC_ASSERT_ALIGNED16_SIZE(RenderableInstanceData, 16)
 
@@ -120,7 +120,7 @@ BUFFER_REFERENCE_STRUCT(16) AimBuffer {
 	aligned_f32vec3 viewSpaceHitNormal;
 	aligned_uint32_t tlasInstanceIndex;
 	aligned_f32vec2 uv;
-	aligned_uint32_t _unused;
+	aligned_uint32_t monitorIndex; // matches with a texture index, 0 means it is not a monitor
 	aligned_uint32_t geometryIndex;
 };
 STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)

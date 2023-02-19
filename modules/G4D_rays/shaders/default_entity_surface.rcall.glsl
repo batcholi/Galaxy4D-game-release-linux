@@ -11,6 +11,9 @@ void main() {
 		surface.color = mix(surface.color, data.color, data.colorMix);
 		surface.metallic = mix(surface.metallic, data.pbrMetallic, data.pbrMix);
 		surface.roughness = mix(surface.roughness, data.pbrRoughness, data.pbrMix);
+		if (data.monitorIndex > 0) {
+			surface.emission *= texture(nonuniformEXT(textures[data.monitorIndex]), surface.uv1).rgb;
+		}
 	}
 	if (surface.geometryInfo.data > 0) {
 		uint16_t tex_albedo = 				uint16_t((surface.geometryInfo.data) & 0xffff);
