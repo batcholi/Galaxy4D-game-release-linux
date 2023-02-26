@@ -91,11 +91,13 @@
 #endif
 
 // Up to 32 options
-#define RENDERER_OPTION_GLASS_REFLECTIONS	(1u<< 0 )
-#define RENDERER_OPTION_WATER_REFLECTIONS	(1u<< 1 )
-#define RENDERER_OPTION_WATER_TRANSPARENCY	(1u<< 2 )
-#define RENDERER_OPTION_WATER_REFRACTION	(1u<< 3 )
-#define RENDERER_OPTION_WATER_WAVES			(1u<< 4 )
+#define RENDERER_OPTION_DIRECT_LIGHTING		(1u<< 0 )
+#define RENDERER_OPTION_INDIRECT_LIGHTING	(1u<< 1 )
+#define RENDERER_OPTION_GLASS_REFLECTIONS	(1u<< 2 )
+#define RENDERER_OPTION_WATER_REFLECTIONS	(1u<< 3 )
+#define RENDERER_OPTION_WATER_TRANSPARENCY	(1u<< 4 )
+#define RENDERER_OPTION_WATER_REFRACTION	(1u<< 5 )
+#define RENDERER_OPTION_WATER_WAVES			(1u<< 6 )
 
 BUFFER_REFERENCE_STRUCT(16) GlobalIllumination {
 	aligned_f32vec4 radiance;
@@ -140,7 +142,8 @@ struct RendererData {
 	aligned_float32_t cameraZNear;
 	aligned_float32_t globalLightingFactor;
 	aligned_uint32_t options; // RENDERER_OPTION_*
-	aligned_f32vec3 _unused1;
+	aligned_f32vec2 _unused1;
+	aligned_uint32_t rays_max_bounces;
 	aligned_float32_t warp;
 	aligned_f32vec3 wireframeColor;
 	aligned_float32_t wireframeThickness;

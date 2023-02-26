@@ -8,8 +8,6 @@
 #define ACCUMULATOR_MAX_FRAME_INDEX_DIFF 2000
 #define USE_PATH_TRACED_GI
 #define USE_BLUE_NOISE
-#define PATH_TRACED_GI_MAX_BOUNCES 4 // should not be higher than MAX_RECURSIONS
-
 
 uint HashGlobalPosition(uvec4 data) {
 	uint hash = 8u, tmp;
@@ -401,13 +399,17 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 	
 	// Direct Lighting
 	vec3 directLighting = vec3(0);
-	if (recursions < RAY_MAX_RECURSION && surface.metallic < 1.0) {
-		directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * albedo ;// (albedo + pow(fresnel, 2) * surface.roughness * (1-surface.metallic)) * (RAY_IS_UNDERWATER? 0.5:1);
+	if ((renderer.options & RENDERER_OPTION_DIRECT_LIGHTING) != 0) {
+		if (recursions < RAY_MAX_RECURSION && surface.metallic < 1.0) {
+			directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * albedo ;// (albedo + pow(fresnel, 2) * surface.roughness * (1-surface.metallic)) * (RAY_IS_UNDERWATER? 0.5:1);
+		}
+	} else {
+		//... maybe some basic ambient???
 	}
 	ray.color = vec4(mix(directLighting * renderer.globalLightingFactor, vec3(0), surface.metallic), 1);
 	
 	if ((xenonRendererData.config.options & RENDER_OPTION_GROUND_TRUTH) != 0) { // #ifdef USE_PATH_TRACED_GI
-		if (recursions < PATH_TRACED_GI_MAX_BOUNCES) {
+		if (recursions < renderer.rays_max_bounces) {
 			RayPayload originalRay = ray;
 			vec3 rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 			
@@ -426,17 +428,19 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 		}
 	} else { // #else
 		if (surface.metallic > 0.1) {
-			if (recursions < PATH_TRACED_GI_MAX_BOUNCES) {
+			if (recursions < renderer.rays_max_bounces) {
 				RayPayload originalRay = ray;
 				vec3 rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 				vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
 				RAY_RECURSION_PUSH
 					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
 				RAY_RECURSION_POP
-				originalRay.color.rgb += ray.color.rgb * albedo * 0.9;
+				originalRay.color.rgb += ray.color.rgb * albedo * min(surface.metallic, 0.9);
 				ray = originalRay;
+			} else {
+				ray.color.rgb += albedo * min(surface.metallic, 0.9);
 			}
-		} else {// Global Illumination
+		} else if ((renderer.options & RENDERER_OPTION_INDIRECT_LIGHTING) != 0) {// Global Illumination
 			if (useGiHashTable) {
 				bool useGi = !rayIsUnderWater;
 				const float GI_DRAW_MAX_DISTANCE = 100;
@@ -484,6 +488,8 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 					ray = originalRay;
 				}
 			}
+		} else {
+			
 		}
 	} // #endif
 	
