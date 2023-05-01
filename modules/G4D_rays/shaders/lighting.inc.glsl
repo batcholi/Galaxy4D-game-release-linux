@@ -8,8 +8,6 @@
 #define ACCUMULATOR_MAX_FRAME_INDEX_DIFF 2000
 #define USE_PATH_TRACED_GI
 #define USE_BLUE_NOISE
-#define PATH_TRACED_GI_MAX_BOUNCES 4 // should not be higher than MAX_RECURSIONS
-
 
 uint HashGlobalPosition(uvec4 data) {
 	uint hash = 8u, tmp;
@@ -268,6 +266,7 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 		float distanceToLightSurface = length(relativeLightPosition) - lightSource.innerRadius - gl_HitTEXT * EPSILON;
 		if (distanceToLightSurface <= 0.001) {
 			directLighting += lightSource.color * lightSource.power;
+			ray.ssao = 0;
 		} else if (nDotL > 0 && distanceToLightSurface < lightSource.maxDistance) {
 			float effectiveLightIntensity = max(0, lightSource.power / (4.0 * PI * distanceToLightSurface*distanceToLightSurface + 1) - LIGHT_LUMINOSITY_VISIBLE_THRESHOLD) * clamp(nDotL, 0, 1);
 			uint index = nbLights;
@@ -296,7 +295,7 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 			if (nbLights < NB_LIGHTS) ++nbLights;
 			#ifndef /*NOT*/SORT_LIGHTS
 				else {
-					rayQueryTerminateEXT(rayQuery);
+					rayQueryTerminateEXT(q);
 					break;
 				}
 			#endif
@@ -339,12 +338,20 @@ vec3 GetDirectLighting(in vec3 position, in vec3 normal) {
 				if (ray.hitDistance == -1) {
 					// lit
 					directLighting += lightsColor[i] * lightsPower[i] * colorFilter * (1 - clamp(opacity,0,1));
-					#ifdef SORT_LIGHTS
+					
+					// #ifdef SORT_LIGHTS
+					// 	ray = originalRay;
+					// 	return directLighting;
+					// #else
+					// 	break;
+					// #endif
+					
+					if (++usefulLights == 2) {
 						ray = originalRay;
 						return directLighting;
-					#else
-						break;
-					#endif
+					}
+					break;
+					
 				} else {
 					colorFilter *= ray.color.rgb;
 					opacity += max(0.05, ray.color.a);
@@ -392,13 +399,17 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 	
 	// Direct Lighting
 	vec3 directLighting = vec3(0);
-	if (recursions < RAY_MAX_RECURSION && surface.metallic < 1.0) {
-		directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * (albedo + fresnel * surface.roughness * (1-surface.metallic)) * (RAY_IS_UNDERWATER? 0.5:1);
+	if ((renderer.options & RENDERER_OPTION_DIRECT_LIGHTING) != 0) {
+		if (recursions < RAY_MAX_RECURSION && surface.metallic < 1.0) {
+			directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * albedo ;// (albedo + pow(fresnel, 2) * surface.roughness * (1-surface.metallic)) * (RAY_IS_UNDERWATER? 0.5:1);
+		}
+	} else {
+		//... maybe some basic ambient???
 	}
 	ray.color = vec4(mix(directLighting * renderer.globalLightingFactor, vec3(0), surface.metallic), 1);
 	
 	if ((xenonRendererData.config.options & RENDER_OPTION_GROUND_TRUTH) != 0) { // #ifdef USE_PATH_TRACED_GI
-		if (recursions < PATH_TRACED_GI_MAX_BOUNCES) {
+		if (recursions < renderer.rays_max_bounces) {
 			RayPayload originalRay = ray;
 			vec3 rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 			
@@ -417,17 +428,19 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 		}
 	} else { // #else
 		if (surface.metallic > 0.1) {
-			if (recursions < PATH_TRACED_GI_MAX_BOUNCES) {
+			if (recursions < renderer.rays_max_bounces) {
 				RayPayload originalRay = ray;
 				vec3 rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 				vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
 				RAY_RECURSION_PUSH
 					traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_VOXEL|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
 				RAY_RECURSION_POP
-				originalRay.color.rgb += ray.color.rgb * albedo * 0.9;
+				originalRay.color.rgb += ray.color.rgb * albedo * min(surface.metallic, 0.9);
 				ray = originalRay;
+			} else {
+				ray.color.rgb += albedo * min(surface.metallic, 0.9);
 			}
-		} else {// Global Illumination
+		} else if ((renderer.options & RENDERER_OPTION_INDIRECT_LIGHTING) != 0) {// Global Illumination
 			if (useGiHashTable) {
 				bool useGi = !rayIsUnderWater;
 				const float GI_DRAW_MAX_DISTANCE = 100;
@@ -437,7 +450,7 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 				const uint giIndex = GetGiIndex(surface.renderableIndex, facingLocalPosition, 0);
 				const uint giIndex1 = GetGiIndex(surface.renderableIndex, facingLocalPosition, 1);
 				seed += recursions * RAY_MAX_RECURSION;
-				if (useGi && ray.hitDistance < GI_DRAW_MAX_DISTANCE && recursions < RAY_MAX_RECURSION && LockAmbientLighting(giIndex)) {
+				if (useGi && ray.hitDistance < GI_DRAW_MAX_DISTANCE && recursions < min(RAY_MAX_RECURSION, renderer.rays_max_bounces + 1) && LockAmbientLighting(giIndex)) {
 					RayPayload originalRay = ray;
 					ray.color.rgb = vec3(0);
 					vec3 bounceDirection = RandomPointOnHemisphere(originalRay.normal) ;// normalize(originalRay.normal + RandomInUnitHemiSphere(seed, originalRay.normal));
@@ -463,7 +476,7 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 				}
 			} else {
 				// Simple Gi Approx by tracing a ray towards the surface normal for just the Atmosphere
-				if (surface.roughness > 0) {
+				if (surface.roughness > 0 && recursions < renderer.rays_max_bounces) {
 					RayPayload originalRay = ray;
 					RAY_RECURSION_PUSH
 						RAY_GI_PUSH
@@ -475,11 +488,21 @@ void ApplyDefaultLighting(bool useGiHashTable) {
 					ray = originalRay;
 				}
 			}
+		} else {
+			
 		}
 	} // #endif
 	
+	if (rayIsGi) return;
+	
 	// Emission
 	ray.color.rgb += surface.emission * renderer.globalLightingFactor;
+	if (dot(surface.emission,surface.emission) > 0) ray.ssao = 0;
+	
+	// Ambient
+	if (!rayIsUnderWater) {
+		ray.color.rgb += vec3(0.02) * albedo * smoothstep(1000, 0, ray.hitDistance);
+	}
 	
 	// Debug UV1
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_UVS) {

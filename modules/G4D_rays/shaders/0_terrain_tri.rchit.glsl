@@ -50,6 +50,9 @@ void main() {
 		executeCallableEXT(GEOMETRY.info.surfaceIndex, SURFACE_CALLABLE_PAYLOAD);
 	// }
 	
+	// Fix black specs caused by skirts
+	if (dot(surface.normal, vec3(0,1,0)) < 0.15) surface.normal = vec3(0,1,0);
+
 	// Apply world space normal
 	ray.normal = normalize(MODEL2WORLDNORMAL * surface.normal);
 

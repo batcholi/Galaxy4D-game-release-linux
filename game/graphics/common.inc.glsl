@@ -43,7 +43,7 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) RenderableData {
 	aligned_float32_t pbrMix;
 	aligned_float32_t pbrMetallic;
 	aligned_float32_t pbrRoughness;
-	aligned_float32_t _unused; // reserved for future use
+	aligned_uint32_t monitorIndex; // matches with a texture index, 0 means not a monitor and don't load any texture
 	aligned_f32vec4 customVec4Data; // unused in game, reserved for modules
 };
 STATIC_ASSERT_ALIGNED16_SIZE(RenderableData, 64)
@@ -82,7 +82,7 @@ struct GeometryInfo {
 	aligned_f32vec4 color;
 	aligned_f32vec3 emission;
 	aligned_uint32_t surfaceIndex;
-	aligned_uint64_t data;
+	aligned_uint64_t data; // default is a pack of 4x uint16 texture indices (albedo/alpha, normal/bump, metallic/roughness, emission)
 	aligned_float32_t metallic;
 	aligned_float32_t roughness;
 	aligned_VkDeviceAddress uv1;
@@ -90,14 +90,19 @@ struct GeometryInfo {
 };
 STATIC_ASSERT_ALIGNED16_SIZE(GeometryInfo, 64)
 
+BUFFER_REFERENCE_STRUCT_READONLY(16) Matrix3x4 {
+	aligned_f32mat3x4 transform3x4;
+};
+
 BUFFER_REFERENCE_STRUCT_READONLY(16) GeometryData {
 	BUFFER_REFERENCE_ADDR(AabbData) aabbs;
 	aligned_VkDeviceAddress vertices;
 	aligned_VkDeviceAddress indices16;
 	aligned_VkDeviceAddress indices32;
+	BUFFER_REFERENCE_ADDR(Matrix3x4) transform;
 	aligned_VkDeviceAddress normals;
 	aligned_VkDeviceAddress colors_u8;
-	aligned_VkDeviceAddress colors_u16;
+	// aligned_VkDeviceAddress colors_u16;
 	aligned_VkDeviceAddress colors_f32;
 	GeometryInfo info;
 };
@@ -105,7 +110,7 @@ STATIC_ASSERT_ALIGNED16_SIZE(GeometryData, 128)
 
 BUFFER_REFERENCE_STRUCT_READONLY(16) RenderableInstanceData {
 	BUFFER_REFERENCE_ADDR(GeometryData) geometries;
-	aligned_uint64_t data; // custom data defined per-shader
+	aligned_uint64_t data; // custom data defined per-shader (defaults to an array of RenderableData per geometry)
 };
 STATIC_ASSERT_ALIGNED16_SIZE(RenderableInstanceData, 16)
 
@@ -119,7 +124,8 @@ BUFFER_REFERENCE_STRUCT(16) AimBuffer {
 	aligned_f32vec4 color;
 	aligned_f32vec3 viewSpaceHitNormal;
 	aligned_uint32_t tlasInstanceIndex;
-	aligned_f32vec3 _unused;
+	aligned_f32vec2 uv;
+	aligned_uint32_t monitorIndex; // matches with a texture index, 0 means it is not a monitor
 	aligned_uint32_t geometryIndex;
 };
 STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)

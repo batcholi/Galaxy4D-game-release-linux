@@ -9,7 +9,7 @@ void main() {
 	
 	vec4 color = imageLoad(img_post, compute_coord);
 	
-	// Dithering (Part 2 of 2) fixed dither
+	// Dithering (Part 2 of 2) fixed dither (part 1 is in toneMapping.comp.glsl)
 	if ((xenonRendererData.config.options & RENDER_OPTION_DITHERING) != 0) {
 		uint seed = InitRandomSeed(compute_coord.x, compute_coord.y);
 		color.rgb += sign(vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 0.5) / 384.0;

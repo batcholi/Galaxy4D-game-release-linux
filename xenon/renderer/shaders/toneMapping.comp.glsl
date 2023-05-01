@@ -14,7 +14,7 @@ void main() {
 	
 	ApplyToneMapping(color);
 	
-	// Dithering (Part 1 of 2) stochastic pre-dither
+	// Dithering (Part 1 of 2) stochastic pre-dither (part 2 is in post.comp.glsl)
 	if ((xenonRendererData.config.options & RENDER_OPTION_DITHERING) != 0) {
 		uint seed = InitRandomSeed(InitRandomSeed(compute_coord.x, compute_coord.y), uint(xenonRendererData.frameIndex % 32ul));
 		color.rgb += sign(vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 0.5) / 384.0;

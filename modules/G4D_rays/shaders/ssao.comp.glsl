@@ -33,7 +33,7 @@ void main() {
 	const vec2 uv = vec2(coords) / imageSize(img_depth);
 	const vec3 viewSpacePos = GetViewSpacePositionFromDepthAndUV(GetDepth(uv), uv);
 	if (-viewSpacePos.z > maxDistance) return;
-	float kernelSize = mix(0.2, 5.0, smoothstep(1.0, maxDistance, -viewSpacePos.z));
+	float kernelSize = mix(0.5, 5.0, smoothstep(1.0, maxDistance, -viewSpacePos.z));
 	
 	float occluded = 0;
 	for (int i = 0; i < nbSamples; ++i) {
@@ -44,10 +44,10 @@ void main() {
 		float sampleDist = -viewSpaceSample.z;
 		float sampleDepthDist = GetTrueDistanceFromDepthBuffer(GetDepth(uv2));
 		if (sampleDist > sampleDepthDist) {
-			occluded += smoothstep(kernelSize*4, kernelSize, sampleDist - sampleDepthDist) * 1.5;
+			occluded += smoothstep(kernelSize*4, kernelSize, sampleDist - sampleDepthDist);
 		}
 	}
-	float ssao = clamp(occluded / float(nbSamples), 0, 1) * clamp(smoothstep(maxDistance, maxDistance/5, -viewSpacePos.z), 0, 1) * clamp(ssaoStrength, 0, 1);
+	float ssao = clamp(occluded / float(nbSamples), 0, 0.5) * clamp(smoothstep(maxDistance, maxDistance/5, -viewSpacePos.z), 0, 1) * clamp(ssaoStrength, 0, 1);
 	
 	vec4 composite = imageLoad(img_composite, coords);
 	imageStore(img_composite, coords, vec4(composite.rgb * mix(1.0, ambient, ssao), composite.a));
