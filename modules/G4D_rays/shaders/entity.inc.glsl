@@ -16,25 +16,37 @@ void main() {
 	
 	surface.distance = ray.hitDistance;
 	surface.localPosition = ray.localPosition;
-	surface.metallic = GEOMETRY.info.metallic;
-	surface.roughness = GEOMETRY.info.roughness;
-	surface.emission = GEOMETRY.info.emission;
+	surface.metallic = GEOMETRY.material.metallic;
+	surface.roughness = GEOMETRY.material.roughness;
+	surface.emission = GEOMETRY.material.emission;
 	surface.ior = 1.45;
-	surface.geometryInfo = GEOMETRY.info;
 	surface.renderableData = INSTANCE.data;
 	surface.aabbData = 0;
 	surface.renderableIndex = gl_InstanceID;
 	surface.geometryIndex = gl_GeometryIndexEXT;
 	surface.primitiveIndex = gl_PrimitiveID;
 	surface.aimID = gl_InstanceCustomIndexEXT;
+	surface.geometries = uint64_t(INSTANCE.geometries);
+	surface.geometryInfoData = GEOMETRY.material.data;
+	surface.geometryUv1Data = GEOMETRY.material.uv1;
+	surface.geometryUv2Data = GEOMETRY.material.uv2;
+	surface.uv1 = vec2(0);
 	
 	// if (OPTION_TEXTURES) {
-		executeCallableEXT(GEOMETRY.info.surfaceIndex, SURFACE_CALLABLE_PAYLOAD);
+		executeCallableEXT(GEOMETRY.material.surfaceIndex, SURFACE_CALLABLE_PAYLOAD);
 	// }
+	
+	// Debug UV1
+	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_UVS) {
+		if (!RAY_IS_SHADOW && RAY_RECURSIONS == 0) imageStore(img_normal_or_debug, COORDS, vec4(surface.uv1, 0, 1));
+		ray.normal = vec3(0);
+		ray.color = vec4(0,0,0,1);
+		return;
+	}
 	
 	ray.normal = normalize(MODEL2WORLDNORMAL * surface.normal);
 	
-	if (surface.color.a < 1.0) {
+	if (surface.color.a < 1.0 || RAY_IS_SHADOW) {
 		ray.color = surface.color;
 		return;
 	}
@@ -49,5 +61,11 @@ void main() {
 		}
 	}
 	
-	ApplyDefaultLighting(true);
+	vec3 giPos = ray.localPosition / renderer.globalIlluminationVoxelSize + surface.normal * 0.5001;
+	ApplyDefaultLighting(gl_InstanceID + 1, giPos, (gl_ObjectToWorldEXT * vec4(round(giPos) * renderer.globalIlluminationVoxelSize, 1)).xyz, renderer.globalIlluminationVoxelSize);
+	
+	// Glossy surfaces
+	if (surface.metallic == 0.0 && surface.roughness == 0.0) {
+		ray.color.a = 2.0;
+	}
 }

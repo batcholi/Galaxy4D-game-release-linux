@@ -5,7 +5,6 @@
 
 // https://www.alanzucconi.com/2017/10/10/atmospheric-scattering-1/
 
-const int RAYMARCH_STEPS = 48; // low=16, medium=24, high=48, ultra=64
 const int RAYMARCH_LIGHT_STEPS = 5; // low=2, medium=3, high=5, ultra=8
 const float sunLuminosityThreshold = LIGHT_LUMINOSITY_VISIBLE_THRESHOLD;
 
@@ -33,7 +32,10 @@ hitAttributeEXT hit {
 void main() {
 	bool rayIsShadow = RAY_IS_SHADOW;
 	bool rayIsGi = RAY_IS_GI;
+	bool rayIsUnderwater = RAY_IS_UNDERWATER;
 	uint recursions = RAY_RECURSIONS;
+	
+	int raymarchSteps = rayIsUnderwater ? 4 : renderer.atmosphere_raymarch_steps;
 	
 	ray.hitDistance = -1;
 	ray.color = vec4(0);
@@ -64,9 +66,9 @@ void main() {
 	float nextHitDistance = xenonRendererData.config.zFar;
 	if (recursions < RAY_MAX_RECURSION && !rayIsGi) {
 		RAY_RECURSION_PUSH
-			traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_ATMOSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t1, viewDir, t2, 0);
+			traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t1, viewDir, t2, 0);
 			if (ray.hitDistance == -1 && !hitInnerRadius) {
-				traceRayEXT(tlas, 0, 0xff, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t2 * 1.0001, viewDir, xenonRendererData.config.zFar, 0);
+				traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t2 * 1.0001, viewDir, xenonRendererData.config.zFar, 0);
 			}
 			if (ray.hitDistance != -1) {
 				nextHitDistance = ray.hitDistance;
@@ -82,11 +84,13 @@ void main() {
 	const float rayStartAltitude = length(startPoint - atmospherePosition);
 	vec3 endPoint = origin + viewDir * min(nextHitDistance, t2);
 	float rayDepth = distance(startPoint, endPoint);
-	float stepSize = rayDepth / float(RAYMARCH_STEPS);
+	float stepSize = rayDepth / float(raymarchSteps);
 	
 	if (hasHitSomethingWithinAtmosphere) {
 		g = 0.0;
 	}
+	
+	bool shadows = recursions == 0 && (renderer.options & RENDERER_OPTION_ATMOSPHERIC_SHADOWS) != 0 && hasHitSomethingWithinAtmosphere;
 	
 	// Start Ray-Marching in the atmosphere!
 	vec3 rayleighScattering = vec3(0);
@@ -96,7 +100,8 @@ void main() {
 		for (int sunIndex = 0; sunIndex < atmosphere.nbSuns; ++sunIndex) {
 			SunData sun = atmosphere.suns[sunIndex];
 			vec3 relativeSunPosition = sun.position - atmospherePosition;
-			vec3 lightIntensity = sun.color * GetSunRadiationAtDistanceSqr(sun.temperature, sun.radius, dot(relativeSunPosition, relativeSunPosition)) * 4.0;
+			float sunDistance = length(relativeSunPosition);
+			vec3 lightIntensity = sun.color * GetSunRadiationAtDistanceSqr(sun.temperature, sun.radius, dot(relativeSunPosition, relativeSunPosition));
 			if (length(lightIntensity) > sunLuminosityThreshold) {
 				vec3 lightDir = normalize(relativeSunPosition);
 				
@@ -112,7 +117,7 @@ void main() {
 
 				// Ray-March
 				vec3 rayPos = startPoint;
-				for (int i = 0; i < RAYMARCH_STEPS; ++i) {
+				for (int i = 0; i < raymarchSteps; ++i) {
 					rayPos += viewDir * stepSize;
 					vec3 posOnSphere = rayPos - atmospherePosition;
 					float rayAltitude = length(posOnSphere);
@@ -131,6 +136,26 @@ void main() {
 					// RayMarch towards light source
 					vec2 lightRayOpticalDepth = vec2(0);
 					float lightRayDist = 0;
+					float lightRayVisibility = 1.0;
+					
+					if (shadows) {
+						// God rays and eclipes
+						vec3 shadowRayDir = lightDir;
+						vec2 rnd = vec2(RandomFloat(seed), RandomFloat(seed));
+						float pointRadius = sun.radius / sunDistance * rnd.x;
+						float pointAngle = rnd.y * 2.0 * PI;
+						vec2 diskPoint = vec2(pointRadius * cos(pointAngle), pointRadius * sin(pointAngle));
+						vec3 lightTangent = normalize(posOnSphere);// normalize(cross(shadowRayDir, viewDir));
+						vec3 lightBitangent = normalize(cross(lightTangent, shadowRayDir));
+						shadowRayDir = normalize(shadowRayDir + diskPoint.x * lightTangent * mix(1, 12, smoothstep(24, 8, float(raymarchSteps))) + diskPoint.y * lightBitangent);
+						rayQueryEXT rq;
+						rayQueryInitializeEXT(rq, tlas, gl_RayFlagsTerminateOnFirstHitEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY, rayPos, 0, shadowRayDir, sunDistance);
+						if (rayQueryProceedEXT(rq)) {
+							// Sunlight occluded by terrain
+							lightRayVisibility = 0;
+						}
+					}
+
 					for (int l = 0; l < RAYMARCH_LIGHT_STEPS; ++l) {
 						vec3 posLightRay = posOnSphere + lightDir * (lightRayDist + lightRayStepSize/2.0);
 						float lightRayAltitude = length(posLightRay) - innerRadius;
@@ -140,8 +165,8 @@ void main() {
 						lightRayDist += lightRayStepSize;
 					}
 					
-					vec3 attenuationRayleigh = exp(-rayleigh.rgb * (opticalDepth.x + lightRayOpticalDepth.x));
-					vec3 attenuationMie = exp(-mie.rgb * (opticalDepth.y + lightRayOpticalDepth.y));
+					vec3 attenuationRayleigh = exp(-rayleigh.rgb * (opticalDepth.x + lightRayOpticalDepth.x)) * lightRayVisibility;
+					vec3 attenuationMie = exp(-mie.rgb * (opticalDepth.y + lightRayOpticalDepth.y)) * lightRayVisibility;
 					rayleighScattering += max(vec3(0),
 						+ rayleigh.rgb * attenuationRayleigh * max(0, density.x * rayleighPhase) * lightIntensity
 					);
@@ -154,7 +179,7 @@ void main() {
 	} else {
 		// Ray-March
 		vec3 rayPos = startPoint;
-		for (int i = 0; i < RAYMARCH_STEPS; ++i) {
+		for (int i = 0; i < raymarchSteps; ++i) {
 			rayPos += viewDir * stepSize;
 			vec3 posOnSphere = rayPos - atmospherePosition;
 			float rayAltitude = length(posOnSphere);
@@ -163,11 +188,6 @@ void main() {
 	}
 	
 	vec4 fog = vec4(rayleighScattering + mieScattering + GetEmissionColor(temperature) * stepSize, pow(clamp(maxDepth/thickness, 0, 1), 2));
-	
-	// if (rayIsGi) {
-	// 	// Desaturate GI
-	// 	fog.rgb = mix(fog.rgb, vec3(length(fog.rgb)), 0.7);
-	// }
 	
 	ray.color.rgb += fog.rgb * fog.a * renderer.globalLightingFactor;
 	ray.color.a += pow(fog.a, 32);

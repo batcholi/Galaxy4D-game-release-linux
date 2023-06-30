@@ -66,8 +66,8 @@ BUFFER_REFERENCE_STRUCT(16) HistogramTotalLuminance {
 struct XenonRendererData {
 	aligned_f32vec4 histogram_avg_luminance;
 	BUFFER_REFERENCE_ADDR(HistogramTotalLuminance) histogram_total_luminance;
-	aligned_uint64_t _unused;
 	aligned_uint64_t frameIndex;
+	aligned_float64_t time;
 	aligned_float64_t deltaTime;
 	XenonRendererConfig config;
 };
@@ -84,10 +84,12 @@ STATIC_ASSERT_SIZE(FSRPushConstant, 80)
 
 #define XENON_RENDERER_SCREEN_COMPUTE_LOCAL_SIZE_X 8
 #define XENON_RENDERER_SCREEN_COMPUTE_LOCAL_SIZE_Y 8
+#define XENON_RENDERER_HISTOGRAM_DIVIDER 2
 
 #define XENON_RENDERER_TEXTURE_INDEX_T uint16_t
 #define XENON_RENDERER_MAX_TEXTURES 65536
 #define XENON_RENDERER_TAA_SAMPLES 16
+#define XENON_RENDERER_THUMBNAIL_SCALE 16
 
 #define XENON_RENDERER_SET0_IMG_SWAPCHAIN 0
 #define XENON_RENDERER_SET0_IMG_POST 1
@@ -136,7 +138,23 @@ STATIC_ASSERT_SIZE(FSRPushConstant, 80)
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Helper Functions
 	
-	void ApplyToneMapping(inout vec4 color) {
+	vec3 ApplyGamma(in vec3 color, in float gamma) {
+		return pow(color, vec3(1.0 / gamma));
+	}
+	
+	vec3 ApplyGamma(in vec3 color) {
+		return ApplyGamma(color, xenonRendererData.config.gamma);
+	}
+	
+	vec3 ReverseGamma(in vec3 color, in float gamma) {
+		return pow(color, vec3(gamma));
+	}
+	
+	vec3 ReverseGamma(in vec3 color) {
+		return ReverseGamma(color, xenonRendererData.config.gamma);
+	}
+	
+	void ApplyToneMapping(inout vec3 color) {
 		// HDR ToneMapping (Reinhard)
 		if ((xenonRendererData.config.options & RENDER_OPTION_TONE_MAPPING) != 0) {
 			float lumRgbTotal = xenonRendererData.histogram_avg_luminance.r + xenonRendererData.histogram_avg_luminance.g + xenonRendererData.histogram_avg_luminance.b;
@@ -150,7 +168,7 @@ STATIC_ASSERT_SIZE(FSRPushConstant, 80)
 		}
 		
 		// Gamma correction
-		color.rgb = pow(color.rgb, vec3(1.0 / xenonRendererData.config.gamma));
+		color.rgb = ApplyGamma(color.rgb);
 	}
 
 	float Fresnel(const vec3 position, const vec3 normal, const float indexOfRefraction) {
@@ -194,6 +212,38 @@ STATIC_ASSERT_SIZE(FSRPushConstant, 80)
 	}
 
 	vec3 Heatmap(float t) {
+		if (t < 0) return vec3(0);
+		if (t > 1) return vec3(1);
+		const vec3 c[10] = {
+			vec3(0.0f / 255.0f,   2.0f / 255.0f,  91.0f / 255.0f),
+			vec3(0.0f / 255.0f, 108.0f / 255.0f, 251.0f / 255.0f),
+			vec3(0.0f / 255.0f, 221.0f / 255.0f, 221.0f / 255.0f),
+			vec3(51.0f / 255.0f, 221.0f / 255.0f,   0.0f / 255.0f),
+			vec3(255.0f / 255.0f, 252.0f / 255.0f,   0.0f / 255.0f),
+			vec3(255.0f / 255.0f, 180.0f / 255.0f,   0.0f / 255.0f),
+			vec3(255.0f / 255.0f, 104.0f / 255.0f,   0.0f / 255.0f),
+			vec3(226.0f / 255.0f,  22.0f / 255.0f,   0.0f / 255.0f),
+			vec3(191.0f / 255.0f,   0.0f / 255.0f,  83.0f / 255.0f),
+			vec3(145.0f / 255.0f,   0.0f / 255.0f,  65.0f / 255.0f)
+		};
+
+		const float s = t * 10.0f;
+
+		const int cur = int(s) <= 9 ? int(s) : 9;
+		const int prv = cur >= 1 ? cur - 1 : 0;
+		const int nxt = cur < 9 ? cur + 1 : 9;
+
+		const float blur = 0.8f;
+
+		const float wc = smoothstep(float(cur) - blur, float(cur) + blur, s) * (1.0f - smoothstep(float(cur + 1) - blur, float(cur + 1) + blur, s));
+		const float wp = 1.0f - smoothstep(float(cur) - blur, float(cur) + blur, s);
+		const float wn = smoothstep(float(cur + 1) - blur, float(cur + 1) + blur, s);
+
+		const vec3 r = wc * c[cur] + wp * c[prv] + wn * c[nxt];
+		return vec3(clamp(r.x, 0.0f, 1.0f), clamp(r.y, 0.0f, 1.0f), clamp(r.z, 0.0f, 1.0f));
+	}
+
+	vec3 HeatmapClamped(float t) {
 		if (t <= 0) return vec3(0);
 		if (t >= 1) return vec3(1);
 		const vec3 c[10] = {
@@ -224,32 +274,34 @@ STATIC_ASSERT_SIZE(FSRPushConstant, 80)
 		const vec3 r = wc * c[cur] + wp * c[prv] + wn * c[nxt];
 		return vec3(clamp(r.x, 0.0f, 1.0f), clamp(r.y, 0.0f, 1.0f), clamp(r.z, 0.0f, 1.0f));
 	}
+	
+	#define PI 3.141592654
 
-	vec3 VarianceClamp5(in vec3 color, in sampler2D tex, in vec2 uv) {
-		vec3 nearColor0 = texture(tex, uv).rgb;
-		vec3 nearColor1 = textureLodOffset(tex, uv, 0.0, ivec2( 1,  0)).rgb;
-		vec3 nearColor2 = textureLodOffset(tex, uv, 0.0, ivec2( 0,  1)).rgb;
-		vec3 nearColor3 = textureLodOffset(tex, uv, 0.0, ivec2(-1,  0)).rgb;
-		vec3 nearColor4 = textureLodOffset(tex, uv, 0.0, ivec2( 0, -1)).rgb;
-		vec3 m1 = nearColor0
+	float gaussian(float x, float sigma) {
+		return exp(-(x * x) / (2 * sigma * sigma)) / (sqrt(2 * PI) * sigma);
+	}
+
+	vec4 VarianceClamp5(in vec4 color, in sampler2D tex, in vec2 uv) {
+		vec4 nearColor0 = texture(tex, uv);
+		vec4 nearColor1 = textureLodOffset(tex, uv, 0.0, ivec2( 1,  0));
+		vec4 nearColor2 = textureLodOffset(tex, uv, 0.0, ivec2( 0,  1));
+		vec4 nearColor3 = textureLodOffset(tex, uv, 0.0, ivec2(-1,  0));
+		vec4 nearColor4 = textureLodOffset(tex, uv, 0.0, ivec2( 0, -1));
+		vec4 m1 = nearColor0
 				+ nearColor1
 				+ nearColor2
 				+ nearColor3
 				+ nearColor4
 		; m1 /= 5;
-		vec3 m2 = nearColor0*nearColor0
+		vec4 m2 = nearColor0*nearColor0
 				+ nearColor1*nearColor1
 				+ nearColor2*nearColor2
 				+ nearColor3*nearColor3
 				+ nearColor4*nearColor4
 		; m2 /= 5;
-		vec3 sigma = sqrt(m2 - m1*m1);
-		const float sigmaNoVarianceThreshold = 0.0001;
-		if (abs(sigma.r) < sigmaNoVarianceThreshold || abs(sigma.g) < sigmaNoVarianceThreshold || abs(sigma.b) < sigmaNoVarianceThreshold) {
-			return nearColor0;
-		}
-		vec3 boxMin = m1 - sigma;
-		vec3 boxMax = m1 + sigma;
+		vec4 sigma = sqrt(m2 - m1*m1);
+		vec4 boxMin = m1 - sigma;
+		vec4 boxMax = m1 + sigma;
 		return clamp(color, boxMin, boxMax);
 	}
 

@@ -10,12 +10,10 @@
 #define RENDERABLE_TYPE_ENTITY_SPHERE 3
 #define RENDERABLE_TYPE_ATMOSPHERE 4
 #define RENDERABLE_TYPE_HYDROSPHERE 5
-#define RENDERABLE_TYPE_VOXEL 6
+#define RENDERABLE_TYPE_ENTITY_VOXEL 6
 #define RENDERABLE_TYPE_CLUTTER_TRI 7
 #define RENDERABLE_TYPE_PLASMA 8
-#define RENDERABLE_TYPE_OVERLAY_TRI 9
-#define RENDERABLE_TYPE_OVERLAY_BOX 10
-#define RENDERABLE_TYPE_OVERLAY_SPHERE 11
+#define RENDERABLE_TYPE_LIGHT_BOX 9
 
 #define SURFACE_CALLABLE_PAYLOAD 0
 #define VOXEL_SURFACE_CALLABLE_PAYLOAD 1
@@ -59,6 +57,21 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) LightSourceInstanceData {
 };
 STATIC_ASSERT_ALIGNED16_SIZE(LightSourceInstanceData, 64)
 
+BUFFER_REFERENCE_STRUCT_WRITEONLY(4) AudibleRenderableData {
+	float audible;
+};
+
+BUFFER_REFERENCE_STRUCT(4) EnvironmentAudioData {
+	aligned_int32_t miss;
+	aligned_int32_t terrain;
+	aligned_int32_t object;
+	aligned_int32_t hydrosphere;
+	aligned_int32_t hydrosphereDistance; // in centimeters
+	aligned_int32_t _unused;
+	BUFFER_REFERENCE_ADDR(AudibleRenderableData) audibleRenderables;
+};
+STATIC_ASSERT_SIZE(EnvironmentAudioData, 32)
+
 BUFFER_REFERENCE_STRUCT_READONLY(16) AtmosphereData {
 	aligned_f32vec4 rayleigh;
 	aligned_f32vec4 mie;
@@ -78,17 +91,25 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) WaterData {
 };
 STATIC_ASSERT_ALIGNED16_SIZE(WaterData, 32)
 
-struct GeometryInfo {
+BUFFER_REFERENCE_STRUCT_READONLY(16) PlasmaData {
+	aligned_float32_t depth;
+	aligned_float32_t radius;
+	aligned_float32_t density; // [1 - 10000] (1000)
+	aligned_float32_t temperature; // [2000 - 20000] (10000)
+};
+STATIC_ASSERT_ALIGNED16_SIZE(PlasmaData, 16)
+
+struct GeometryMaterial {
 	aligned_f32vec4 color;
 	aligned_f32vec3 emission;
 	aligned_uint32_t surfaceIndex;
-	aligned_uint64_t data; // default is a pack of 4x uint16 texture indices (albedo/alpha, normal/bump, metallic/roughness, emission)
+	aligned_uint64_t data; // custom per surface shader, default is a pack of 4x uint16 texture indices (albedo/alpha, normal/bump, metallic/roughness, emission)
 	aligned_float32_t metallic;
 	aligned_float32_t roughness;
-	aligned_VkDeviceAddress uv1;
-	aligned_VkDeviceAddress uv2;
+	aligned_VkDeviceAddress uv1; // Used only within a surface shader as surface.geometryUv1Data, may be used for custom stuff, although for monitors we should compute it and set surface.uv1 from our surface shader
+	aligned_VkDeviceAddress uv2; // Used only within a surface shader as surface.geometryUv2Data, may be used for custom stuff
 };
-STATIC_ASSERT_ALIGNED16_SIZE(GeometryInfo, 64)
+STATIC_ASSERT_ALIGNED16_SIZE(GeometryMaterial, 64)
 
 BUFFER_REFERENCE_STRUCT_READONLY(16) Matrix3x4 {
 	aligned_f32mat3x4 transform3x4;
@@ -102,15 +123,14 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) GeometryData {
 	BUFFER_REFERENCE_ADDR(Matrix3x4) transform;
 	aligned_VkDeviceAddress normals;
 	aligned_VkDeviceAddress colors_u8;
-	// aligned_VkDeviceAddress colors_u16;
 	aligned_VkDeviceAddress colors_f32;
-	GeometryInfo info;
+	GeometryMaterial material;
 };
 STATIC_ASSERT_ALIGNED16_SIZE(GeometryData, 128)
 
 BUFFER_REFERENCE_STRUCT_READONLY(16) RenderableInstanceData {
 	BUFFER_REFERENCE_ADDR(GeometryData) geometries;
-	aligned_uint64_t data; // custom data defined per-shader (defaults to an array of RenderableData per geometry)
+	aligned_uint64_t data; // custom data defined per renderable type (defaults to an array of RenderableData per geometry)
 };
 STATIC_ASSERT_ALIGNED16_SIZE(RenderableInstanceData, 16)
 
@@ -131,6 +151,8 @@ BUFFER_REFERENCE_STRUCT(16) AimBuffer {
 STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)
 
 #ifdef GLSL
+	#define EPSILON 0.0001
+	
 	struct Surface {
 		vec4 color;
 		vec3 normal;
@@ -139,7 +161,6 @@ STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)
 		float roughness;
 		vec3 localPosition;
 		float ior;
-		GeometryInfo geometryInfo;
 		uint64_t renderableData;
 		uint64_t aabbData;
 		uint32_t renderableIndex;
@@ -148,7 +169,12 @@ STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)
 		uint32_t aimID;
 		vec2 uv1;
 		vec2 uv2;
+		vec3 barycentricCoords;
 		float distance;
+		uint64_t geometries;
+		uint64_t geometryInfoData;
+		uint64_t geometryUv1Data;
+		uint64_t geometryUv2Data;
 	};
 	#if defined(SHADER_RCHIT)
 		layout(location = SURFACE_CALLABLE_PAYLOAD) callableDataEXT Surface surface;
@@ -156,6 +182,172 @@ STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)
 	#if defined(SHADER_SURFACE)
 		layout(location = SURFACE_CALLABLE_PAYLOAD) callableDataInEXT Surface surface;
 	#endif
+	
+	layout(buffer_reference, std430, buffer_reference_align = 2) buffer readonly IndexBuffer16 {uint16_t indices[];};
+	layout(buffer_reference, std430, buffer_reference_align = 4) buffer readonly IndexBuffer32 {uint32_t indices[];};
+	layout(buffer_reference, std430, buffer_reference_align = 4) buffer readonly VertexBuffer {float vertices[];};
+	layout(buffer_reference, std430, buffer_reference_align = 4) buffer readonly VertexColorU8 {u8vec4 colors[];};
+	layout(buffer_reference, std430, buffer_reference_align = 16) buffer readonly VertexColorF32 {f32vec4 colors[];};
+	layout(buffer_reference, std430, buffer_reference_align = 4) buffer readonly VertexNormal {float normals[];};
+	layout(buffer_reference, std430, buffer_reference_align = 4) buffer readonly VertexUV {float uv[];};
+	
+	vec3 ComputeSurfaceNormal(in uint64_t geometries, in uint geometryIndex, in uint primitiveID, in vec3 barycentricCoordsOrLocalPosition) {
+		GeometryData geometry = GeometryData(geometries)[geometryIndex];
+		if (uint64_t(geometry.aabbs) != 0) {
+			const vec3 aabb_min = vec3(geometry.aabbs[primitiveID].aabb[0], geometry.aabbs[primitiveID].aabb[1], geometry.aabbs[primitiveID].aabb[2]);
+			const vec3 aabb_max = vec3(geometry.aabbs[primitiveID].aabb[3], geometry.aabbs[primitiveID].aabb[4], geometry.aabbs[primitiveID].aabb[5]);
+			const float THRESHOLD = EPSILON ;// * ray.hitDistance;
+			const vec3 absMin = abs(barycentricCoordsOrLocalPosition - aabb_min.xyz);
+			const vec3 absMax = abs(barycentricCoordsOrLocalPosition - aabb_max.xyz);
+				 if (absMin.x < THRESHOLD) return vec3(-1, 0, 0);
+			else if (absMin.y < THRESHOLD) return vec3( 0,-1, 0);
+			else if (absMin.z < THRESHOLD) return vec3( 0, 0,-1);
+			else if (absMax.x < THRESHOLD) return vec3( 1, 0, 0);
+			else if (absMax.y < THRESHOLD) return vec3( 0, 1, 0);
+			else if (absMax.z < THRESHOLD) return vec3( 0, 0, 1);
+			else return normalize(barycentricCoordsOrLocalPosition);
+		}
+		uint index0 = primitiveID * 3;
+		uint index1 = primitiveID * 3 + 1;
+		uint index2 = primitiveID * 3 + 2;
+		if (geometry.indices16 != 0) {
+			index0 = IndexBuffer16(geometry.indices16).indices[index0];
+			index1 = IndexBuffer16(geometry.indices16).indices[index1];
+			index2 = IndexBuffer16(geometry.indices16).indices[index2];
+		} else if (geometry.indices32 != 0) {
+			index0 = IndexBuffer32(geometry.indices32).indices[index0];
+			index1 = IndexBuffer32(geometry.indices32).indices[index1];
+			index2 = IndexBuffer32(geometry.indices32).indices[index2];
+		}
+		vec3 normal;
+		if (geometry.normals != 0) {
+			VertexNormal vertexNormals = VertexNormal(geometry.normals);
+			normal = normalize(
+				+ vec3(vertexNormals.normals[index0*3], vertexNormals.normals[index0*3+1], vertexNormals.normals[index0*3+2]) * barycentricCoordsOrLocalPosition.x
+				+ vec3(vertexNormals.normals[index1*3], vertexNormals.normals[index1*3+1], vertexNormals.normals[index1*3+2]) * barycentricCoordsOrLocalPosition.y
+				+ vec3(vertexNormals.normals[index2*3], vertexNormals.normals[index2*3+1], vertexNormals.normals[index2*3+2]) * barycentricCoordsOrLocalPosition.z
+			);
+			
+		} else if (geometry.vertices != 0) {
+			VertexBuffer vertexBuffer = VertexBuffer(geometry.vertices);
+			vec3 v0 = vec3(vertexBuffer.vertices[index0*3], vertexBuffer.vertices[index0*3+1], vertexBuffer.vertices[index0*3+2]);
+			vec3 v1 = vec3(vertexBuffer.vertices[index1*3], vertexBuffer.vertices[index1*3+1], vertexBuffer.vertices[index1*3+2]);
+			vec3 v2 = vec3(vertexBuffer.vertices[index2*3], vertexBuffer.vertices[index2*3+1], vertexBuffer.vertices[index2*3+2]);
+			normal = normalize(cross(v1 - v0, v2 - v0));
+		} else {
+			return normalize(barycentricCoordsOrLocalPosition);
+		}
+		if (uint64_t(geometry.transform) != 0) {
+			normal = normalize(inverse(mat3(geometry.transform.transform3x4)) * normal);
+		}
+		return normal;
+	}
+	vec4 ComputeSurfaceColor(in uint64_t geometries, in uint geometryIndex, in uint primitiveID, in vec3 barycentricCoordsOrLocalPosition) {
+		GeometryData geometry = GeometryData(geometries)[geometryIndex];
+		if (geometry.colors_u8 != 0) {
+			VertexColorU8 vertexColors = VertexColorU8(geometry.colors_u8);
+			if (uint64_t(geometry.aabbs) != 0) {
+				return clamp(vec4(vertexColors.colors[primitiveID]) / 255.0, vec4(0), vec4(1));
+			}
+			uint index0 = primitiveID * 3;
+			uint index1 = primitiveID * 3 + 1;
+			uint index2 = primitiveID * 3 + 2;
+			if (geometry.indices16 != 0) {
+				index0 = IndexBuffer16(geometry.indices16).indices[index0];
+				index1 = IndexBuffer16(geometry.indices16).indices[index1];
+				index2 = IndexBuffer16(geometry.indices16).indices[index2];
+			} else if (geometry.indices32 != 0) {
+				index0 = IndexBuffer32(geometry.indices32).indices[index0];
+				index1 = IndexBuffer32(geometry.indices32).indices[index1];
+				index2 = IndexBuffer32(geometry.indices32).indices[index2];
+			}
+			return clamp(
+				+ vec4(vertexColors.colors[index0]) / 255.0 * barycentricCoordsOrLocalPosition.x
+				+ vec4(vertexColors.colors[index1]) / 255.0 * barycentricCoordsOrLocalPosition.y
+				+ vec4(vertexColors.colors[index2]) / 255.0 * barycentricCoordsOrLocalPosition.z
+			, vec4(0), vec4(1));
+		} else if (geometry.colors_f32 != 0) {
+			VertexColorF32 vertexColors = VertexColorF32(geometry.colors_f32);
+			if (uint64_t(geometry.aabbs) != 0) {
+				return clamp(vertexColors.colors[primitiveID], vec4(0), vec4(1));
+			}
+			uint index0 = primitiveID * 3;
+			uint index1 = primitiveID * 3 + 1;
+			uint index2 = primitiveID * 3 + 2;
+			if (geometry.indices16 != 0) {
+				index0 = IndexBuffer16(geometry.indices16).indices[index0];
+				index1 = IndexBuffer16(geometry.indices16).indices[index1];
+				index2 = IndexBuffer16(geometry.indices16).indices[index2];
+			} else if (geometry.indices32 != 0) {
+				index0 = IndexBuffer32(geometry.indices32).indices[index0];
+				index1 = IndexBuffer32(geometry.indices32).indices[index1];
+				index2 = IndexBuffer32(geometry.indices32).indices[index2];
+			}
+			return clamp(
+				+ vertexColors.colors[index0] * barycentricCoordsOrLocalPosition.x
+				+ vertexColors.colors[index1] * barycentricCoordsOrLocalPosition.y
+				+ vertexColors.colors[index2] * barycentricCoordsOrLocalPosition.z
+			, vec4(0), vec4(1));
+		} else {
+			return vec4(1);
+		}
+	}
+	vec2 ComputeSurfaceUV1(in uint64_t geometries, in uint geometryIndex, in uint primitiveID, in vec3 barycentricCoordsOrLocalPosition) {
+		GeometryData geometry = GeometryData(geometries)[geometryIndex];
+		if (uint64_t(geometry.aabbs) != 0) {
+			return vec2(0);
+		}
+		uint index0 = primitiveID * 3;
+		uint index1 = primitiveID * 3 + 1;
+		uint index2 = primitiveID * 3 + 2;
+		if (geometry.indices16 != 0) {
+			index0 = IndexBuffer16(geometry.indices16).indices[index0];
+			index1 = IndexBuffer16(geometry.indices16).indices[index1];
+			index2 = IndexBuffer16(geometry.indices16).indices[index2];
+		} else if (geometry.indices32 != 0) {
+			index0 = IndexBuffer32(geometry.indices32).indices[index0];
+			index1 = IndexBuffer32(geometry.indices32).indices[index1];
+			index2 = IndexBuffer32(geometry.indices32).indices[index2];
+		}
+		if (geometry.material.uv1 != 0) {
+			VertexUV vertexUV = VertexUV(geometry.material.uv1);
+			return (
+				+ vec2(vertexUV.uv[index0*2], vertexUV.uv[index0*2+1]) * barycentricCoordsOrLocalPosition.x
+				+ vec2(vertexUV.uv[index1*2], vertexUV.uv[index1*2+1]) * barycentricCoordsOrLocalPosition.y
+				+ vec2(vertexUV.uv[index2*2], vertexUV.uv[index2*2+1]) * barycentricCoordsOrLocalPosition.z
+			);
+		} else {
+			return vec2(0);
+		}
+	}
+	vec2 ComputeSurfaceUV2(in uint64_t geometries, in uint geometryIndex, in uint primitiveID, in vec3 barycentricCoordsOrLocalPosition) {
+		GeometryData geometry = GeometryData(geometries)[geometryIndex];
+		if (uint64_t(geometry.aabbs) != 0) {
+			return vec2(0);
+		}
+		uint index0 = primitiveID * 3;
+		uint index1 = primitiveID * 3 + 1;
+		uint index2 = primitiveID * 3 + 2;
+		if (geometry.indices16 != 0) {
+			index0 = IndexBuffer16(geometry.indices16).indices[index0];
+			index1 = IndexBuffer16(geometry.indices16).indices[index1];
+			index2 = IndexBuffer16(geometry.indices16).indices[index2];
+		} else if (geometry.indices32 != 0) {
+			index0 = IndexBuffer32(geometry.indices32).indices[index0];
+			index1 = IndexBuffer32(geometry.indices32).indices[index1];
+			index2 = IndexBuffer32(geometry.indices32).indices[index2];
+		}
+		if (geometry.material.uv2 != 0) {
+			VertexUV vertexUV = VertexUV(geometry.material.uv2);
+			return (
+				+ vec2(vertexUV.uv[index0*2], vertexUV.uv[index0*2+1]) * barycentricCoordsOrLocalPosition.x
+				+ vec2(vertexUV.uv[index1*2], vertexUV.uv[index1*2+1]) * barycentricCoordsOrLocalPosition.y
+				+ vec2(vertexUV.uv[index2*2], vertexUV.uv[index2*2+1]) * barycentricCoordsOrLocalPosition.z
+			);
+		} else {
+			return vec2(0);
+		}
+	}
 	
 #endif
 

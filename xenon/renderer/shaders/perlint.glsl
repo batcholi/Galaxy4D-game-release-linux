@@ -25,28 +25,6 @@ uint32_t perlint32Hash(u32vec3 p) {
 	h += h >> 6;
 	return h;
 }
-uint64_t perlint64Hash(u64vec3 p) {
-	uint64_t h = 8u, _;
-	h += p.x & 0xffffu;
-	_ = (((p.x >> 16) & 0xffffu) << 11) ^ h;
-	h = (h << 16) ^ _;
-	h += h >> 11;
-	h += p.y & 0xffffu;
-	_ = (((p.y >> 16) & 0xffffu) << 11) ^ h;
-	h = (h << 16) ^ _;
-	h += h >> 11;
-	h += p.z & 0xffffu;
-	_ = (((p.z >> 16) & 0xffffu) << 11) ^ h;
-	h = (h << 16) ^ _;
-	h += h >> 11;
-	h ^= h << 3;
-	h += h >> 5;
-	h ^= h << 4;
-	h += h >> 17;
-	h ^= h << 25;
-	h += h >> 6;
-	return h;
-}
 
 uint32_t perlint32(u32vec3 pos, uint32_t stride, uint32_t maximum) {
 	u32vec3 d = pos % stride;
@@ -70,15 +48,15 @@ uint32_t perlint32(u32vec3 pos, uint32_t stride, uint32_t maximum) {
 }
 uint64_t perlint64(u64vec3 pos, uint64_t stride, uint64_t maximum) {
 	u64vec3 d = pos % stride;
-	pos /= stride;
-	uint64_t p000 = perlint64Hash(pos) % maximum;
-	uint64_t p001 = perlint64Hash(pos + u64vec3(0,0,1)) % maximum;
-	uint64_t p010 = perlint64Hash(pos + u64vec3(0,1,0)) % maximum;
-	uint64_t p011 = perlint64Hash(pos + u64vec3(0,1,1)) % maximum;
-	uint64_t p100 = perlint64Hash(pos + u64vec3(1,0,0)) % maximum;
-	uint64_t p101 = perlint64Hash(pos + u64vec3(1,0,1)) % maximum;
-	uint64_t p110 = perlint64Hash(pos + u64vec3(1,1,0)) % maximum;
-	uint64_t p111 = perlint64Hash(pos + u64vec3(1,1,1)) % maximum;
+	u32vec3 pos32 = u32vec3(pos / stride);
+	uint64_t p000 = uint64_t(perlint32Hash(pos32)) % maximum;
+	uint64_t p001 = uint64_t(perlint32Hash(pos32 + u32vec3(0,0,1))) % maximum;
+	uint64_t p010 = uint64_t(perlint32Hash(pos32 + u32vec3(0,1,0))) % maximum;
+	uint64_t p011 = uint64_t(perlint32Hash(pos32 + u32vec3(0,1,1))) % maximum;
+	uint64_t p100 = uint64_t(perlint32Hash(pos32 + u32vec3(1,0,0))) % maximum;
+	uint64_t p101 = uint64_t(perlint32Hash(pos32 + u32vec3(1,0,1))) % maximum;
+	uint64_t p110 = uint64_t(perlint32Hash(pos32 + u32vec3(1,1,0))) % maximum;
+	uint64_t p111 = uint64_t(perlint32Hash(pos32 + u32vec3(1,1,1))) % maximum;
 	uint64_t p00 = (p000 * (stride - d.x) + p100 * d.x) / stride;
 	uint64_t p01 = (p001 * (stride - d.x) + p101 * d.x) / stride;
 	uint64_t p10 = (p010 * (stride - d.x) + p110 * d.x) / stride;
@@ -120,25 +98,25 @@ float perlint32f(u32vec3 pos, uint32_t stride, uint32_t maximum) {
 }
 double perlint64f(u64vec3 pos, uint64_t stride, uint64_t maximum) {
 	double stridef = double(stride);
-	f64vec3 d = f64vec3(pos % stride) / stridef;
-	pos /= stride;
+	f64vec3 d = smoothstep(0.0, 1.0, f64vec3(pos % stride) / stridef);
+	u32vec3 pos32 = u32vec3(pos / stride);
 	double maximumf = double(maximum);
-	double p000 = double(perlint64Hash(pos) % maximum);
-	double p001 = double(perlint64Hash(pos + u64vec3(0,0,1)) % maximum);
-	double p010 = double(perlint64Hash(pos + u64vec3(0,1,0)) % maximum);
-	double p011 = double(perlint64Hash(pos + u64vec3(0,1,1)) % maximum);
-	double p100 = double(perlint64Hash(pos + u64vec3(1,0,0)) % maximum);
-	double p101 = double(perlint64Hash(pos + u64vec3(1,0,1)) % maximum);
-	double p110 = double(perlint64Hash(pos + u64vec3(1,1,0)) % maximum);
-	double p111 = double(perlint64Hash(pos + u64vec3(1,1,1)) % maximum);
-	double p00 = (p000 * slerp(1.0 - d.x) + p100 * slerp(d.x));
-	double p01 = (p001 * slerp(1.0 - d.x) + p101 * slerp(d.x));
-	double p10 = (p010 * slerp(1.0 - d.x) + p110 * slerp(d.x));
-	double p11 = (p011 * slerp(1.0 - d.x) + p111 * slerp(d.x));
-	double p0 = (p00 * slerp(1.0 - d.y) + p10 * slerp(d.y));
-	double p1 = (p01 * slerp(1.0 - d.y) + p11 * slerp(d.y));
-	double p = (p0 * slerp(1.0 - d.z) + p1 * slerp(d.z));
-	return slerp(p / maximumf);
+	double p000 = double(uint64_t(perlint32Hash(pos32)) % maximum);
+	double p001 = double(uint64_t(perlint32Hash(pos32 + u32vec3(0,0,1))) % maximum);
+	double p010 = double(uint64_t(perlint32Hash(pos32 + u32vec3(0,1,0))) % maximum);
+	double p011 = double(uint64_t(perlint32Hash(pos32 + u32vec3(0,1,1))) % maximum);
+	double p100 = double(uint64_t(perlint32Hash(pos32 + u32vec3(1,0,0))) % maximum);
+	double p101 = double(uint64_t(perlint32Hash(pos32 + u32vec3(1,0,1))) % maximum);
+	double p110 = double(uint64_t(perlint32Hash(pos32 + u32vec3(1,1,0))) % maximum);
+	double p111 = double(uint64_t(perlint32Hash(pos32 + u32vec3(1,1,1))) % maximum);
+	double p00 = (p000 * (1-d.x) + p100 * d.x);
+	double p01 = (p001 * (1-d.x) + p101 * d.x);
+	double p10 = (p010 * (1-d.x) + p110 * d.x);
+	double p11 = (p011 * (1-d.x) + p111 * d.x);
+	double p0 = (p00 * (1-d.y) + p10 * d.y);
+	double p1 = (p01 * (1-d.y) + p11 * d.y);
+	double p = (p0 * (1-d.z) + p1 * d.z);
+	return smoothstep(0.0, 1.0, p / maximumf);
 }
 
 uint32_t perlint32Ridged(u32vec3 pos, uint32_t stride, uint32_t maximum) {

@@ -5,6 +5,8 @@
 #include "game/graphics/common.inc.glsl"
 
 void main() {
+	surface.uv1 = ComputeSurfaceUV1(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
+	surface.uv2 = ComputeSurfaceUV2(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
 	if (surface.renderableData != 0) {
 		RenderableData data = RenderableData(surface.renderableData)[surface.geometryIndex];
 		surface.emission += data.emission;
@@ -15,11 +17,11 @@ void main() {
 			surface.emission *= texture(nonuniformEXT(textures[data.monitorIndex]), surface.uv1).rgb;
 		}
 	}
-	if (surface.geometryInfo.data > 0) {
-		uint16_t tex_albedo = 				uint16_t((surface.geometryInfo.data) & 0xffff);
-		uint16_t tex_normal = 				uint16_t((surface.geometryInfo.data >> 16) & 0xffff);
-		uint16_t tex_metallic_roughness = 	uint16_t((surface.geometryInfo.data >> 32) & 0xffff);
-		uint16_t tex_emission = 			uint16_t((surface.geometryInfo.data >> 48) & 0xffff);
+	if (surface.geometryInfoData > 0) {
+		uint16_t tex_albedo = 				uint16_t((surface.geometryInfoData) & 0xffff);
+		uint16_t tex_normal = 				uint16_t((surface.geometryInfoData >> 16) & 0xffff);
+		uint16_t tex_metallic_roughness = 	uint16_t((surface.geometryInfoData >> 32) & 0xffff);
+		uint16_t tex_emission = 			uint16_t((surface.geometryInfoData >> 48) & 0xffff);
 		if (tex_albedo > 0) surface.color.rgb *= texture(nonuniformEXT(textures[tex_albedo]), surface.uv1).rgb;
 		if (tex_normal > 0) {
 			//TODO: normal maps using tex_normal

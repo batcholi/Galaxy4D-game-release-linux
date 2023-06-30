@@ -2,11 +2,9 @@
 #define SHADER_WATER
 #include "common.inc.glsl"
 
-#define WATER_MAX_LIGHT_DEPTH 128
-#define WATER_MAX_LIGHT_DEPTH_VERTICAL 256
 #define WATER_IOR 1.33
 #define WATER_OPACITY 0.1
-#define WATER_TINT vec3(0.2,0.3,0.4)
+#define WATER_TINT vec3(0.6,0.7,0.8)
 
 hitAttributeEXT hit {
 	float t1;
@@ -91,10 +89,10 @@ void main() {
 	ray.hitDistance = gl_HitTEXT;
 	ray.normal = vec3(0,1,0);
 	ray.color = vec4(vec3(0), 1);
+	ray.id = -1;
+	ray.renderableIndex = -1;
 	
 	if (recursions >= RAY_MAX_RECURSION) {
-		ray.id = -1;
-		ray.renderableIndex = -1;
 		return;
 	}
 	
@@ -103,7 +101,38 @@ void main() {
 	
 	bool rayIsGi = RAY_IS_GI;
 	bool rayIsShadow = RAY_IS_SHADOW;
+	bool rayIsUnderwater = RAY_IS_UNDERWATER;
 	vec3 worldPosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+	
+	if (rayIsShadow && rayIsUnderwater) {
+		// Underwater shadow
+		ray.hitDistance = gl_HitTEXT;
+		ray.t2 = t2;
+		ray.normal = vec3(0);
+		SetHitWater();
+		if (gl_HitKindEXT != 0) {
+			// Underwater
+			
+			// Trace other things inside water
+			vec3 rayPosition = gl_WorldRayOriginEXT;
+			vec3 rayDirection = gl_WorldRayDirectionEXT;
+			RayPayload originalRay = ray;
+			RAY_RECURSION_PUSH
+				traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_CLUTTER, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, t2, 0);
+			RAY_RECURSION_POP
+			if (ray.hitDistance > 0) {
+				originalRay.t2 = min(ray.hitDistance * 0.99, originalRay.t2);
+			}
+			ray = originalRay;
+		}
+		ray.color = vec4(vec3(1), 0);
+		return;
+	}
+	
+	uint rayMask = RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA;
+	if (rayIsGi && rayIsUnderwater) {
+		rayMask &= ~RAYTRACE_MASK_CLUTTER;
+	}
 	
 	// Compute normal
 	vec3 surfaceNormal; // in world space
@@ -134,7 +163,7 @@ void main() {
 		
 		// Reflection on top of water surface
 		vec3 reflectDir = normalize(reflect(gl_WorldRayDirectionEXT, surfaceNormal));
-		uint reflectionMask = ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0)? (~RAYTRACE_MASK_HYDROSPHERE) : RAYTRACE_MASK_ATMOSPHERE;
+		uint reflectionMask = ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0)? rayMask : RAYTRACE_MASK_ATMOSPHERE;
 		RAY_RECURSION_PUSH
 			RAY_GI_PUSH
 				traceRayEXT(tlas, 0, reflectionMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, reflectDir, 10000, 0);
@@ -149,7 +178,7 @@ void main() {
 				RAY_RECURSION_PUSH
 					RAY_UNDERWATER_PUSH
 						ray.color = vec4(0);
-						traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, rayDirection, WATER_MAX_LIGHT_DEPTH, 0);
+						traceRayEXT(tlas, 0, rayMask & ~RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, rayDirection, WATER_MAX_LIGHT_DEPTH, 0);
 					RAY_UNDERWATER_POP
 				RAY_RECURSION_POP
 				if (ray.hitDistance == -1) {
@@ -178,6 +207,8 @@ void main() {
 		float dotUp = dot(gl_WorldRayDirectionEXT, -downDir);
 		float maxLightDepth = mix(WATER_MAX_LIGHT_DEPTH, WATER_MAX_LIGHT_DEPTH_VERTICAL, max(0, dotUp));
 		
+		RAY_UNDERWATER_PUSH
+		
 		if (dotUp > 0) {
 			// Looking up towards surface
 
@@ -192,10 +223,8 @@ void main() {
 			vec3 rayPosition = gl_WorldRayOriginEXT;
 			vec3 rayDirection = gl_WorldRayDirectionEXT;
 			RAY_RECURSION_PUSH
-				RAY_UNDERWATER_PUSH
-					ray.color = vec4(0);
-					traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, distanceToSurface, 0);
-				RAY_UNDERWATER_POP
+				ray.color = vec4(0);
+				traceRayEXT(tlas, 0, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, distanceToSurface, 0);
 			RAY_RECURSION_POP
 			
 			if (ray.hitDistance == -1) {
@@ -209,7 +238,7 @@ void main() {
 					RAY_RECURSION_PUSH
 						ray.color = vec4(0);
 						if ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0) {
-							traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
+							traceRayEXT(tlas, 0, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
 						} else {
 							RAY_GI_PUSH
 								traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
@@ -238,10 +267,8 @@ void main() {
 			vec3 rayPosition = gl_WorldRayOriginEXT;
 			vec3 rayDirection = gl_WorldRayDirectionEXT;
 			RAY_RECURSION_PUSH
-				RAY_UNDERWATER_PUSH
-					ray.color = vec4(0);
-					traceRayEXT(tlas, 0, ~(RAYTRACE_MASK_HYDROSPHERE), 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, WATER_MAX_LIGHT_DEPTH, 0);
-				RAY_UNDERWATER_POP
+				ray.color = vec4(0);
+				traceRayEXT(tlas, 0, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, WATER_MAX_LIGHT_DEPTH_VERTICAL, 0);
 			RAY_RECURSION_POP
 			if (ray.hitDistance == -1) {
 				ray.hitDistance = maxLightDepth;
@@ -261,9 +288,18 @@ void main() {
 		const vec3 dir = gl_WorldRayDirectionEXT;
 		const float distFactor = clamp(ray.hitDistance / maxLightDepth, 0 ,1);
 		const float fogStrength = max(WATER_OPACITY, pow(distFactor, 0.25));
-		ray.color.rgb = mix(ray.color.rgb * WATER_TINT, vec3(0), pow(clamp(ray.hitDistance / maxLightDepth, 0, 1), 0.5));
-		
-		RAY_UNDERWATER_PUSH
+		vec3 waterLighting = vec3(0);
+		if (recursions < RAY_MAX_RECURSION) {
+			RayPayload originalRay = ray;
+			RAY_RECURSION_PUSH
+				RAY_GI_PUSH
+					traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, -downDir, 10000, 0);
+				RAY_GI_POP
+			RAY_RECURSION_POP
+			waterLighting = ray.color.rgb * WATER_OPACITY;
+			ray = originalRay;
+		}
+		ray.color.rgb = WATER_TINT * mix(ray.color.rgb, waterLighting, pow(clamp(ray.hitDistance / maxLightDepth, 0, 1), 0.5));
 	}
 	
 	// Debug Time

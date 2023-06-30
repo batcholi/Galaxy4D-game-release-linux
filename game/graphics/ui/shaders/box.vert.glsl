@@ -18,5 +18,5 @@ void main() {
 	if (boxSize.x == 0) boxSize.x = 2;
 	if (boxSize.y == 0) boxSize.y = 2;
 	gl_Position = vec4(boxPos + vertices[gl_VertexIndex] * boxSize, 0, 1);
-	out_uv = vertices[gl_VertexIndex] + vec2(0.5/screenRatio, 0.5);
+	out_uv = vertices[gl_VertexIndex] + vec2(0.5);
 }

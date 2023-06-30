@@ -34,6 +34,8 @@
 // const float textureMaxDistance = 200;
 
 // void main() {
+// 	// surface.uv1 = ComputeSurfaceUV1(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
+// 	// surface.uv2 = ComputeSurfaceUV2(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
 // 	// surface.color.rgb = mix(rockColor, sandColor, 0.5);
 // 	// if (surface.distance < textureMaxDistance) {
 // 	// 	float strength = smoothstep(textureMaxDistance, 0, surface.distance);

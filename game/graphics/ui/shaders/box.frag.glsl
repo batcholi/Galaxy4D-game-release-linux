@@ -8,6 +8,7 @@ void main() {
 	out_color = box.color;
 	if (box.texture != 0) {
 		vec2 uv = in_uv;
-		out_color *= texture(textures[box.texture], uv);
+		vec4 tex = texture(textures[box.texture], uv);
+		out_color = mix(out_color, tex, tex.a);
 	}
 }

@@ -172,7 +172,7 @@ STATIC_ASSERT_ALIGNED16_SIZE(ChunkVoxelData, (8+2+1)*VOXELS_PER_SUBCHUNK + 16 + 
 		uint8_t voxelFace;
 		uint64_t voxelFill;
 		uint64_t chunkAddr;
-		GeometryInfo geometryInfo;
+		GeometryMaterial geometryInfo;
 		uint64_t renderableData;
 		float distance;
 	};

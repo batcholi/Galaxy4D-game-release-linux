@@ -27,7 +27,8 @@ double _moutainStep(double start, double end, double value) {
 }
 
 double GetHeightMap(dvec3 normalizedPos) {
-	u64vec3 pos = u64vec3(normalizedPos * config.baseRadiusMillimeters + 200000000000.0);
+	u64vec3 pos = u64vec3(normalizedPos * config.baseRadiusMillimeters + 10000000000.0); // this supports planets with a maximum radius of 10'000 km and ground precision of 1 cm
+	
 	uint64_t variation = uint64_t(config.heightVariationMillimeters);
 	double variationf = double(variation);
 	
@@ -36,7 +37,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 	const uint warpOctaves = 3;
 	const uint64_t continentStride = 2000 KM;
 	
-	u64vec3 warp = u64vec3(perlint64(pos + uint64_t(6546495), warpStride, warpMaximum, warpOctaves), perlint64(pos + uint64_t(516556), warpStride, warpMaximum, warpOctaves), perlint64(pos - uint64_t(897178), warpStride, warpMaximum, warpOctaves));
+	u64vec3 warp = u64vec3(perlint64(pos + uint64_t(16546495), warpStride, warpMaximum, warpOctaves), perlint64(pos + uint64_t(5165156), warpStride, warpMaximum, warpOctaves), perlint64(pos - uint64_t(1897178), warpStride, warpMaximum, warpOctaves));
 	double polarity = _getPolarity(normalizedPos);
 	double continentsMax = slerp(perlint64f(pos + warp, continentStride, variation));
 	double continentsMed = continentsMax * (slerp(perlint64f(pos + warp, continentStride/2, variation)));

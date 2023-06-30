@@ -3,8 +3,6 @@
 
 #define ENTITY_COMPUTE_SURFACE \
 	surface.normal = ComputeSurfaceNormal(ray.localPosition);\
-	surface.color = ComputeSurfaceColor(ray.localPosition) * GEOMETRY.info.color;\
-	surface.uv1 = ComputeSurfaceUV1(ray.localPosition);\
-	surface.uv2 = ComputeSurfaceUV2(ray.localPosition);\
+	surface.color = ComputeSurfaceColor(ray.localPosition) * GEOMETRY.material.color;\
 
 #include "entity.inc.glsl"

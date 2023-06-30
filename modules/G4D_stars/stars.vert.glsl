@@ -40,8 +40,8 @@ void main() {
 	out_color = vec4(
 		+ color1 * smallStars * 0.2
 		+ color1 * normalStars
-		+ color2 * brightStars * 2
-		+ color2 * veryBrightStars * 32
-		+ color2 * ultraBrightStars * 512
+		+ color2 * brightStars * 4
+		+ color2 * veryBrightStars * 64
+		+ color2 * ultraBrightStars * 1024
 	, 1) * 0.1;
 }

@@ -12,13 +12,8 @@ void main() {
 	// Copy to history BEFORE applying Tone Mapping
 	imageStore(img_history, compute_coord, color);
 	
-	ApplyToneMapping(color);
+	ApplyToneMapping(color.rgb);
+	color = clamp(color, vec4(0), vec4(1));
 	
-	// Dithering (Part 1 of 2) stochastic pre-dither (part 2 is in post.comp.glsl)
-	if ((xenonRendererData.config.options & RENDER_OPTION_DITHERING) != 0) {
-		uint seed = InitRandomSeed(InitRandomSeed(compute_coord.x, compute_coord.y), uint(xenonRendererData.frameIndex % 32ul));
-		color.rgb += sign(vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 0.5) / 384.0;
-	}
-	
-	imageStore(img_resolved, compute_coord, vec4(clamp(color.rgb, vec3(0), vec3(1)), imageLoad(img_composite, compute_coord).a));
+	imageStore(img_resolved, compute_coord, color);
 }

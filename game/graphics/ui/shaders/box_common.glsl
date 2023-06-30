@@ -11,12 +11,12 @@ struct UiElementBoxData {
 	uint32_t _padding[22];
 	#ifdef __cplusplus
 		UiElementBoxData(){}
-		UiElementBoxData(const glm::vec4& color_, const glm::vec2& posNDC, const glm::vec2& halfSize, uint16_t texture_ = 0, uint16_t flags_ = 0)
+		UiElementBoxData(const glm::vec4& color_, const glm::vec2& posNDC, const glm::vec2& sizeHalfHeight, uint16_t texture_ = 0, uint32_t flags_ = 0)
 		: color(color_)
 		, x(posNDC.x)
 		, y(posNDC.y)
-		, width(halfSize.x)
-		, height(halfSize.y)
+		, width(sizeHalfHeight.x)
+		, height(sizeHalfHeight.y)
 		, texture(texture_)
 		, flags(flags_)
 		{}
