@@ -3,7 +3,7 @@
 void main() {
 	
 	ray.hitDistance = gl_HitTEXT;
-	ray.id = gl_InstanceCustomIndexEXT;
+	ray.aimID = gl_InstanceCustomIndexEXT;
 	ray.renderableIndex = gl_InstanceID;
 	ray.geometryIndex = gl_GeometryIndexEXT;
 	ray.primitiveIndex = gl_PrimitiveID;
@@ -21,20 +21,23 @@ void main() {
 	surface.emission = GEOMETRY.material.emission;
 	surface.ior = 1.45;
 	surface.renderableData = INSTANCE.data;
-	surface.aabbData = 0;
 	surface.renderableIndex = gl_InstanceID;
 	surface.geometryIndex = gl_GeometryIndexEXT;
 	surface.primitiveIndex = gl_PrimitiveID;
-	surface.aimID = gl_InstanceCustomIndexEXT;
 	surface.geometries = uint64_t(INSTANCE.geometries);
 	surface.geometryInfoData = GEOMETRY.material.data;
 	surface.geometryUv1Data = GEOMETRY.material.uv1;
 	surface.geometryUv2Data = GEOMETRY.material.uv2;
 	surface.uv1 = vec2(0);
+	surface.specular = step(0.1, surface.roughness) * (0.5 + surface.metallic * 0.5);
 	
 	// if (OPTION_TEXTURES) {
 		executeCallableEXT(GEOMETRY.material.surfaceIndex, SURFACE_CALLABLE_PAYLOAD);
 	// }
+	
+	#ifdef ENTITY_AFTER_SURFACE
+		ENTITY_AFTER_SURFACE
+	#endif
 	
 	// Debug UV1
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_UVS) {
@@ -61,8 +64,8 @@ void main() {
 		}
 	}
 	
-	vec3 giPos = ray.localPosition / renderer.globalIlluminationVoxelSize + surface.normal * 0.5001;
-	ApplyDefaultLighting(gl_InstanceID + 1, giPos, (gl_ObjectToWorldEXT * vec4(round(giPos) * renderer.globalIlluminationVoxelSize, 1)).xyz, renderer.globalIlluminationVoxelSize);
+	vec3 giPos = (INSTANCE.giTransform * vec4(ray.localPosition, 1)).xyz / renderer.globalIlluminationVoxelSize + surface.normal * 0.5001;
+	ApplyDefaultLighting(INSTANCE.giID, giPos, (gl_ObjectToWorldEXT * vec4(round(giPos) * renderer.globalIlluminationVoxelSize, 1)).xyz, renderer.globalIlluminationVoxelSize);
 	
 	// Glossy surfaces
 	if (surface.metallic == 0.0 && surface.roughness == 0.0) {

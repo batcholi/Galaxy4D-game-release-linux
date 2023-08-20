@@ -4,6 +4,10 @@
 #define SHADER_SURFACE
 #include "game/graphics/common.inc.glsl"
 
+float SurfaceDetail(vec3 position) {
+	return SimplexFractal(position, 3) * 0.5 + 0.5;
+}
+
 void main() {
 	surface.uv1 = ComputeSurfaceUV1(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
 	surface.uv2 = ComputeSurfaceUV2(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
@@ -38,5 +42,14 @@ void main() {
 			}
 			surface.emission = emissionPower * texture(nonuniformEXT(textures[tex_emission]), surface.uv1).rgb;
 		}
+	}
+	
+	// Rough metal
+	if (surface.metallic > 0 && surface.roughness > 0) {
+		vec3 scale = vec3(20);
+		if (abs(dot(surface.normal, vec3(1,0,0))) < 0.4) scale.x = 400;
+		else if (abs(dot(surface.normal, vec3(0,1,0))) < 0.4) scale.y = 400;
+		else if (abs(dot(surface.normal, vec3(0,0,1))) < 0.4) scale.z = 400;
+		APPLY_NORMAL_BUMP_NOISE(SurfaceDetail, surface.localPosition * scale, surface.normal, surface.roughness * 0.01)
 	}
 }

@@ -19,6 +19,8 @@
 #define SET1_BINDING_PRIMARY_ALBEDO_ROUGHNESS_IMAGE 4
 #define SET1_BINDING_POST_HISTORY_IMAGE 5
 #define SET1_BINDING_BLOOM_IMAGE 6
+#define SET1_BINDING_CLOUD_IMAGE 7
+#define SET1_BINDING_CLOUD_SAMPLER 8
 
 #define RENDERER_DEBUG_VIEWMODE_NONE 0
 #define RENDERER_DEBUG_VIEWMODE_RAYGEN_TIME 1
@@ -79,17 +81,17 @@
 
 #ifdef __cplusplus
 	inline static constexpr uint32_t RAYTRACE_MASKS[] { // must match the order of renderable types
-		/*RENDERABLE_TYPE_TERRAIN_TRI*/		RAYTRACE_MASK_TERRAIN,
-		/*RENDERABLE_TYPE_ENTITY_TRI*/		RAYTRACE_MASK_ENTITY,
-		/*RENDERABLE_TYPE_ENTITY_BOX*/		RAYTRACE_MASK_ENTITY,
-		/*RENDERABLE_TYPE_ENTITY_SPHERE*/	RAYTRACE_MASK_ENTITY,
-		/*RENDERABLE_TYPE_ATMOSPHERE*/		RAYTRACE_MASK_ATMOSPHERE,
-		/*RENDERABLE_TYPE_HYDROSPHERE*/		RAYTRACE_MASK_HYDROSPHERE,
-		/*RENDERABLE_TYPE_ENTITY_VOXEL*/	RAYTRACE_MASK_ENTITY,
-		/*RENDERABLE_TYPE_CLUTTER_TRI*/		RAYTRACE_MASK_CLUTTER,
-		/*RENDERABLE_TYPE_PLASMA*/			RAYTRACE_MASK_PLASMA,
-		/*RENDERABLE_TYPE_LIGHT_BOX*/		RAYTRACE_MASK_LIGHT,
-		// /*RENDERABLE_TYPE_____*/			RAYTRACE_MASK_____,
+		/*  0	RENDERABLE_TYPE_TERRAIN_TRI */		RAYTRACE_MASK_TERRAIN,
+		/*  1	RENDERABLE_TYPE_ENTITY_TRI */		RAYTRACE_MASK_ENTITY,
+		/*  2	RENDERABLE_TYPE_ENTITY_BOX */		RAYTRACE_MASK_ENTITY,
+		/*  3	RENDERABLE_TYPE_ENTITY_SPHERE */	RAYTRACE_MASK_ENTITY,
+		/*  4	RENDERABLE_TYPE_ATMOSPHERE */		RAYTRACE_MASK_ATMOSPHERE,
+		/*  5	RENDERABLE_TYPE_HYDROSPHERE */		RAYTRACE_MASK_HYDROSPHERE,
+		/*  6	RENDERABLE_TYPE_ENTITY_VOXEL */		RAYTRACE_MASK_ENTITY,
+		/*  7	RENDERABLE_TYPE_CLUTTER_TRI */		RAYTRACE_MASK_CLUTTER,
+		/*  8	RENDERABLE_TYPE_PLASMA */			RAYTRACE_MASK_PLASMA,
+		/*  9	RENDERABLE_TYPE_LIGHT_BOX */		RAYTRACE_MASK_LIGHT,
+		/* 10	RENDERABLE_TYPE_CLUTTER_PIPE */		RAYTRACE_MASK_CLUTTER,
 	};
 #endif
 
@@ -103,6 +105,7 @@
 #define RENDERER_OPTION_WATER_REFRACTION	(1u<< 6 )
 #define RENDERER_OPTION_WATER_WAVES			(1u<< 7 )
 #define RENDERER_OPTION_ATMOSPHERIC_SHADOWS	(1u<< 8 )
+#define RENDERER_OPTION_SPECULAR_SURFACES	(1u<< 9 )
 
 BUFFER_REFERENCE_STRUCT(16) GlobalIllumination {
 	aligned_f32vec4 bestSample;
@@ -244,6 +247,8 @@ STATIC_ASSERT_ALIGNED16_SIZE(RendererData, 3*64 + 12*8 + 5*16 + 4*8);
 	layout(set = 1, binding = SET1_BINDING_PRIMARY_ALBEDO_ROUGHNESS_IMAGE, rgba8) uniform image2D img_primary_albedo_roughness;
 	layout(set = 1, binding = SET1_BINDING_POST_HISTORY_IMAGE, rgba8) uniform image2D img_post_history;
 	layout(set = 1, binding = SET1_BINDING_BLOOM_IMAGE, rgba8) uniform image2D img_bloom;
+	layout(set = 1, binding = SET1_BINDING_CLOUD_IMAGE, rgba32f) uniform image2D img_cloud[2];
+	layout(set = 1, binding = SET1_BINDING_CLOUD_SAMPLER) uniform sampler2D sampler_cloud;
 	
 	#define WORLD2VIEWNORMAL transpose(inverse(mat3(renderer.viewMatrix)))
 	#define VIEW2WORLDNORMAL transpose(mat3(renderer.viewMatrix))
@@ -271,14 +276,15 @@ STATIC_ASSERT_ALIGNED16_SIZE(RendererData, 3*64 + 12*8 + 5*16 + 4*8);
 		float t2;
 		vec3 worldPosition;
 		float hitDistance;
-		int id;
+		int aimID;
 		int renderableIndex;
 		int geometryIndex;
 		int primitiveIndex;
 		vec4 plasma;
 	};
 
-	#if defined(SHADER_RGEN) || defined(SHADER_RCHIT)
+	#if defined(SHADER_RGEN) || defined(SHADER_RCHIT) || defined(SHADER_COMP_RAYS)
+		#extension GL_EXT_ray_query : require
 		layout(set = 1, binding = SET1_BINDING_TLAS) uniform accelerationStructureEXT tlas;
 		layout(set = 1, binding = SET1_BINDING_LIGHTS_TLAS) uniform accelerationStructureEXT tlas_lights;
 	#endif
@@ -292,7 +298,6 @@ STATIC_ASSERT_ALIGNED16_SIZE(RendererData, 3*64 + 12*8 + 5*16 + 4*8);
 	#endif
 	
 	#ifdef SHADER_RCHIT
-		#extension GL_EXT_ray_query : require
 		layout(location = 0) rayPayloadInEXT RayPayload ray;
 	#endif
 

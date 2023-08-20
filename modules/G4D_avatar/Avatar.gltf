@@ -1,6 +1,6 @@
 {
 	"asset":{
-		"generator":"Khronos glTF Blender I/O v3.5.30",
+		"generator":"Khronos glTF Blender I/O v3.6.6",
 		"version":"2.0"
 	},
 	"scene":0,
@@ -18,7 +18,7 @@
 			"name":"l_foot",
 			"translation":[
 				0,
-				-0.46286118030548096,
+				-0.46286123991012573,
 				0.06384974718093872
 			]
 		},
@@ -29,9 +29,9 @@
 			"mesh":1,
 			"name":"l_lowerleg",
 			"translation":[
-				-0.01760232448577881,
-				-0.4536689519882202,
-				0.01482686772942543
+				-0.017598852515220642,
+				-0.4536706805229187,
+				0.014827482402324677
 			]
 		},
 		{
@@ -51,8 +51,8 @@
 			"name":"r_foot",
 			"translation":[
 				0,
-				-0.46286123991012573,
-				0.06384968757629395
+				-0.4628613591194153,
+				0.06384991854429245
 			]
 		},
 		{
@@ -62,9 +62,9 @@
 			"mesh":4,
 			"name":"r_lowerleg",
 			"translation":[
-				0.017602309584617615,
-				-0.453669011592865,
-				0.01482684537768364
+				0.017602257430553436,
+				-0.4536692500114441,
+				0.014826994389295578
 			]
 		},
 		{
@@ -83,8 +83,8 @@
 			"mesh":6,
 			"name":"l_hand",
 			"translation":[
-				-0.29993027448654175,
-				-4.0262161746795755e-06,
+				-0.299930214881897,
+				-4.023231213068357e-06,
 				0
 			]
 		},
@@ -120,8 +120,8 @@
 			],
 			"translation":[
 				-0.2085990011692047,
-				0.3403671979904175,
-				0.05553996562957764
+				0.34036731719970703,
+				0.05553995072841644
 			]
 		},
 		{
@@ -129,16 +129,16 @@
 			"name":"head",
 			"translation":[
 				0,
-				0.49316513538360596,
-				0.04267149791121483
+				0.4931652545928955,
+				0.04267147183418274
 			]
 		},
 		{
 			"mesh":10,
 			"name":"r_hand",
 			"translation":[
-				0.2999298870563507,
-				-4.141700173931895e-06,
+				0.2999299466609955,
+				-4.157341663812986e-06,
 				0
 			]
 		},
@@ -155,7 +155,7 @@
 				0.9914448857307434
 			],
 			"translation":[
-				0.31976476311683655,
+				0.3197648227214813,
 				0,
 				0
 			]
@@ -174,8 +174,8 @@
 			],
 			"translation":[
 				0.20859909057617188,
-				0.3403671979904175,
-				0.05553996562957764
+				0.34036731719970703,
+				0.05553995072841644
 			]
 		},
 		{
@@ -194,7 +194,12 @@
 				13
 			],
 			"mesh":14,
-			"name":"butt"
+			"name":"butt",
+			"translation":[
+				0,
+				1.194537878036499,
+				0
+			]
 		}
 	],
 	"materials":[
@@ -2076,11 +2081,11 @@
 		{
 			"bufferView":135,
 			"componentType":5126,
-			"count":11350,
+			"count":9500,
 			"max":[
 				0.22468331456184387,
 				0.5435036420822144,
-				0.19883526861667633
+				0.2160554975271225
 			],
 			"min":[
 				-0.22468331456184387,
@@ -2092,13 +2097,13 @@
 		{
 			"bufferView":136,
 			"componentType":5126,
-			"count":11350,
+			"count":9500,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":137,
 			"componentType":5123,
-			"count":61440,
+			"count":48252,
 			"type":"SCALAR"
 		},
 		{
@@ -3111,152 +3116,152 @@
 		},
 		{
 			"buffer":0,
-			"byteLength":136200,
+			"byteLength":114000,
 			"byteOffset":3535240,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":136200,
-			"byteOffset":3671440,
+			"byteLength":114000,
+			"byteOffset":3649240,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":122880,
-			"byteOffset":3807640,
+			"byteLength":96504,
+			"byteOffset":3763240,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":3648,
-			"byteOffset":3930520,
+			"byteOffset":3859744,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":3648,
-			"byteOffset":3934168,
+			"byteOffset":3863392,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":3072,
-			"byteOffset":3937816,
+			"byteOffset":3867040,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":15300,
-			"byteOffset":3940888,
+			"byteOffset":3870112,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":15300,
-			"byteOffset":3956188,
+			"byteOffset":3885412,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":13776,
-			"byteOffset":3971488,
+			"byteOffset":3900712,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":41556,
-			"byteOffset":3985264,
+			"byteOffset":3914488,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":41556,
-			"byteOffset":4026820,
+			"byteOffset":3956044,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":40128,
-			"byteOffset":4068376,
+			"byteOffset":3997600,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":29364,
-			"byteOffset":4108504,
+			"byteOffset":4037728,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":29364,
-			"byteOffset":4137868,
+			"byteOffset":4067092,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":27648,
-			"byteOffset":4167232,
+			"byteOffset":4096456,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":6240,
-			"byteOffset":4194880,
+			"byteOffset":4124104,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":6240,
-			"byteOffset":4201120,
+			"byteOffset":4130344,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":3120,
-			"byteOffset":4207360,
+			"byteOffset":4136584,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":5916,
-			"byteOffset":4210480,
+			"byteOffset":4139704,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":5916,
-			"byteOffset":4216396,
+			"byteOffset":4145620,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":5616,
-			"byteOffset":4222312,
+			"byteOffset":4151536,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":12096,
-			"byteOffset":4227928,
+			"byteOffset":4157152,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":12096,
-			"byteOffset":4240024,
+			"byteOffset":4169248,
 			"target":34962
 		},
 		{
 			"buffer":0,
 			"byteLength":11520,
-			"byteOffset":4252120,
+			"byteOffset":4181344,
 			"target":34963
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":4263640,
+			"byteLength":4192864,
 			"uri":"Avatar.bin"
 		}
 	]

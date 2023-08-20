@@ -11,7 +11,7 @@ hitAttributeEXT vec3 hitAttribs;
 void main() {
 	
 	ray.hitDistance = gl_HitTEXT;
-	ray.id = gl_InstanceCustomIndexEXT;
+	ray.aimID = gl_InstanceCustomIndexEXT;
 	ray.renderableIndex = gl_InstanceID;
 	ray.geometryIndex = gl_GeometryIndexEXT;
 	ray.primitiveIndex = gl_PrimitiveID;
@@ -35,12 +35,12 @@ void main() {
 	surface.renderableIndex = gl_InstanceID;
 	surface.geometryIndex = gl_GeometryIndexEXT;
 	surface.primitiveIndex = gl_PrimitiveID;
-	surface.aimID = gl_InstanceCustomIndexEXT;
 	surface.geometries = uint64_t(INSTANCE.geometries);
 	surface.geometryInfoData = GEOMETRY.material.data;
 	surface.geometryUv1Data = GEOMETRY.material.uv1;
 	surface.geometryUv2Data = GEOMETRY.material.uv2;
 	surface.uv1 = vec2(0);
+	surface.specular = 0;
 	
 	// Terrain is always fully opaque
 	ray.color.a = 1;

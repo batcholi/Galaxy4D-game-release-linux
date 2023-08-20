@@ -209,7 +209,7 @@ void main() {
 	
 	// Standard payload info
 	ray.hitDistance = gl_HitTEXT;
-	ray.id = gl_InstanceCustomIndexEXT;
+	ray.aimID = gl_InstanceCustomIndexEXT;
 	ray.renderableIndex = gl_InstanceID;
 	ray.geometryIndex = gl_GeometryIndexEXT;
 	ray.primitiveIndex = gl_PrimitiveID;

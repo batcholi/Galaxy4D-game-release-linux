@@ -165,7 +165,7 @@ vec3 WriteAmbientLighting0(in uint giIndex, in uint objectIndex, in ivec3 iPos, 
 
 // Level 1
 vec3 WriteAmbientLighting1(in uint objectIndex, in ivec3 iPos, in vec3 inputRadiance, in float inputRatio) {
-	vec3 l = inputRadiance;
+	vec3 l = clamp(inputRadiance, vec3(0), vec3(1));
 	uint giIndex = GetGiIndex(objectIndex, iPos);
 	if (LockAmbientLighting1(giIndex)) {
 		uvec4 giPos = GetGiPos(objectIndex, iPos);
@@ -332,7 +332,7 @@ float caustics(vec3 worldPosition, vec3 normal, float t) {
 	return pow(l,7.)*25.;
 }
 
-vec3 GetDirectLighting(in vec3 worldPosition, in vec3 normal) {
+vec3 GetDirectLighting(in vec3 worldPosition, in vec3 normal, in vec3 albedo) {
 	vec3 position = worldPosition + normal * gl_HitTEXT * 0.0005;
 	vec3 directLighting = vec3(0);
 	
@@ -359,7 +359,7 @@ vec3 GetDirectLighting(in vec3 worldPosition, in vec3 normal) {
 			directLighting += lightSource.color * lightSource.power;
 			ray.ssao = 0;
 		} else if (nDotL > 0 && distanceToLightSurface < lightSource.maxDistance) {
-			float effectiveLightIntensity = max(0, lightSource.power / (4.0 * PI * distanceToLightSurface*distanceToLightSurface + 1) - LIGHT_LUMINOSITY_VISIBLE_THRESHOLD) * clamp(nDotL, 0, 1);
+			float effectiveLightIntensity = max(0, lightSource.power / (4.0 * PI * distanceToLightSurface*distanceToLightSurface + 1) - LIGHT_LUMINOSITY_VISIBLE_THRESHOLD);
 			uint index = nbLights;
 			#ifdef SORT_LIGHTS
 				for (index = 0; index < nbLights; ++index) {
@@ -442,7 +442,11 @@ vec3 GetDirectLighting(in vec3 worldPosition, in vec3 normal) {
 				RAY_RECURSION_POP
 				if (ray.hitDistance == -1) {
 					// lit
-					directLighting += lightsColor[i] * lightsPower[i] * colorFilter * (1 - clamp(opacity,0,1));
+					vec3 light = lightsColor[i] * lightsPower[i];
+					vec3 diffuse = albedo * light * clamp(dot(normal, shadowRayDir), 0, 1) * (1 - surface.metallic);
+					vec3 reflectDir = reflect(-shadowRayDir, normal);
+					vec3 specular = light * pow(max(dot(-gl_WorldRayDirectionEXT, reflectDir), 0.0), mix(16, 4, surface.metallic)) * mix(vec3(1), albedo, surface.metallic);
+					directLighting += colorFilter * (1 - clamp(opacity,0,1)) * mix(diffuse, diffuse + specular, step(1, float(renderer.options & RENDERER_OPTION_SPECULAR_SURFACES)) * surface.specular);
 					
 					if (++usefulLights == 2) {
 						ray = originalRay;
@@ -499,6 +503,28 @@ vec3 GetDirectLighting(in vec3 worldPosition, in vec3 normal) {
 	}
 #endif
 
+// // FOR SSR
+// vec3 GetScreenCoordFromViewSpacePosition(vec3 viewSpacePosition) {
+// 	vec4 coord = xenonRendererData.config.projectionMatrix * vec4(viewSpacePosition, 1);
+// 	coord.xyz /= coord.w;
+// 	return coord.xyz * 0.5 + 0.5;
+// }
+// vec2 RandomInUnitSquare(inout uint seed) {
+// 	return 2 * vec2(RandomFloat(seed), RandomFloat(seed)) - 1;
+// }
+// float GetDistance(vec2 uv) {
+// 	float dist = texture(sampler_motion, uv).a;
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2( 1,  0)).a);
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2(-1,  0)).a);
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2( 0,  1)).a);
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2( 0, -1)).a);
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2( 1,  1)).a);
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2(-1, -1)).a);
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2( 1, -1)).a);
+// 	dist = max(dist, textureLodOffset(sampler_motion, uv, 0.0, ivec2(-1,  1)).a);
+// 	return dist;
+// }
+
 void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOrigin, in float giVoxelSize) {
 	bool rayIsShadow = RAY_IS_SHADOW;
 	uint recursions = RAY_RECURSIONS;
@@ -520,11 +546,11 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 	// Direct Lighting
 	vec3 directLighting = vec3(0);
 	if ((renderer.options & RENDERER_OPTION_DIRECT_LIGHTING) != 0) {
-		if (recursions < RAY_MAX_RECURSION && surface.metallic < 1.0) {
-			directLighting = GetDirectLighting(ray.worldPosition, ray.normal) * albedo;
+		if (recursions < RAY_MAX_RECURSION && surface.metallic - surface.roughness < 1.0) {
+			directLighting = GetDirectLighting(ray.worldPosition, ray.normal, albedo);
 		}
 	}
-	ray.color = vec4(mix(directLighting * renderer.globalLightingFactor, vec3(0), surface.metallic), 1);
+	ray.color = vec4(mix(directLighting * renderer.globalLightingFactor, vec3(0), clamp(surface.metallic - surface.roughness, 0, 1)), 1);
 	
 	if ((xenonRendererData.config.options & RENDER_OPTION_GROUND_TRUTH) != 0) {
 		if (recursions < renderer.rays_max_bounces) {
@@ -535,7 +561,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 			vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
 			vec3 randomDirection = normalize(RandomInUnitHemiSphere(seed, originalRay.normal));
 			// vec3 randomDirection = RandomCosineOnHemisphere(originalRay.normal);
-			vec3 bounceDirection = normalize(mix(reflectDirection, randomDirection, mix(1.0, min(0.9, surface.roughness*surface.roughness), surface.metallic)));
+			vec3 bounceDirection = normalize(mix(reflectDirection, randomDirection, min(0.5, surface.roughness*surface.roughness)));
 			RAY_RECURSION_PUSH
 				RAY_GI_PUSH
 					float transparency = 1;
@@ -552,11 +578,14 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 			ray = originalRay;
 		}
 	} else {
-		if (surface.metallic > 0.1) {
+		if (surface.metallic > 0.1 && surface.roughness < 0.1) {
+			
 			if (recursions < renderer.rays_max_bounces) {
 				RayPayload originalRay = ray;
 				vec3 rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 				vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
+				// vec3 randomDirection = normalize(RandomInUnitHemiSphere(seed, originalRay.normal));
+				// reflectDirection = normalize(mix(reflectDirection, randomDirection, 0.5*surface.roughness*surface.roughness));
 				RAY_RECURSION_PUSH
 					float transparency = 1;
 					do {
@@ -569,6 +598,38 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 				originalRay.color.rgb += ray.color.rgb * albedo * min(surface.metallic, 0.9) + ray.plasma.rgb;
 				ray = originalRay;
 			}
+			
+			// // SSR
+			// float reflectionBlur = surface.roughness*surface.roughness;
+			// float mirror = clamp(1 - reflectionBlur, 0, 1);
+			// const vec3 startViewSpacePos = (renderer.viewMatrix * vec4(ray.worldPosition, 1)).xyz;
+			// const vec3 startScreenSpaceCoord = GetScreenCoordFromViewSpacePosition(startViewSpacePos);
+			// vec3 viewSpacePos = startViewSpacePos;
+			// const vec2 screenSize = textureSize(sampler_history, 0);
+			// const float fragSize = 1.0 / min(screenSize.x, screenSize.y);
+			// const vec3 normal = normalize(WORLD2VIEWNORMAL * ray.normal);
+			// vec3 viewSpaceReflectionDir = normalize(reflect(normalize(startViewSpacePos), normal));
+			// const float stepSizeViewSpace = 0.1;
+			// const int maxSteps = 100;
+			// vec2 uv = vec2(0);
+			// for (int i = 0; i < maxSteps; ++i) {
+			// 	viewSpacePos += viewSpaceReflectionDir * stepSizeViewSpace;
+			// 	uv = GetScreenCoordFromViewSpacePosition(viewSpacePos).xy;
+			// 	if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1) break;
+			// 	float dist = GetDistance(uv);
+			// 	if (viewSpacePos.z > dist) {
+			// 		break;
+			// 	}
+			// }
+			// vec3 reflected = vec3(0);
+			// float accumulation = 1;
+			// if (uv.x <= 0 || uv.x > 1 || uv.y <= 0 || uv.y > 1) {
+			// } else {
+			// 	reflected += clamp(texture(sampler_history, uv).rgb, 0, xenonRendererData.histogram_avg_luminance.a);
+			// }
+			// ++accumulation;
+			// ray.color.rgb = reflected / accumulation;
+			
 		} else 
 		if ((renderer.options & RENDERER_OPTION_INDIRECT_LIGHTING) != 0) {// Global Illumination
 			vec3 rayOrigin = ray.worldPosition + ray.normal * 0.001;
@@ -591,39 +652,42 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 					RayPayload originalRay = ray;
 					vec3 bounceDirection = normalize(RandomInUnitHemiSphere(seed, originalRay.normal));
 					float bestSampleProbability = pow(RandomFloat(seed), 2.0);
-					bounceDirection = normalize(mix(GetGi(giIndex).bestSample.xyz, bounceDirection, bestSampleProbability));
+					vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
+					const float reflectionDirBias = 0.8;
+					bounceDirection = normalize(reflectDirection * reflectionDirBias + mix(GetGi(giIndex).bestSample.xyz, bounceDirection, bestSampleProbability));
 					float nDotL = clamp(dot(originalRay.normal, bounceDirection), 0, 1);
-					if (nDotL > 0) {
-						RAY_RECURSION_PUSH
-							RAY_GI_PUSH
-								float transparency = 1;
-								do {
-									traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_PLASMA|RAYTRACE_MASK_LIGHT, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, max(ATMOSPHERE_RAY_MIN_DISTANCE, GI_MAX_DISTANCE), 0);
-									ray.color.rgb += ray.plasma.rgb;
-									ray.color.rgb *= transparency;
-									rayOrigin += bounceDirection * (ray.hitDistance + ray.t2) - ray.normal * max(2.0, ray.hitDistance) * EPSILON;
-									transparency *= 1.0 - clamp(ray.color.a, 0, 1);
-								} while (transparency > 0.1 && ray.hitDistance > 0);
-							RAY_GI_POP
-						RAY_RECURSION_POP
-						ray.color.rgb *= pow(1-clamp(realDistance / GI_MAX_DISTANCE, 0, 1), 2.0) * bestSampleProbability;
-						vec3 l = WriteAmbientLighting0(giIndex, giObjectIndex, iPos, ApplyGamma(ray.color.rgb) * renderer.globalLightingFactor);
-						if (!rayIsGi) {
-							l = WriteAmbientLighting1(giObjectIndex, iPos, l, 1.0);
-							for (int i = 0; i < nbAdjacentSides; ++i) {
-								// rayQueryEXT rqAdjacency;
-								// rayQueryInitializeEXT(rqAdjacency, tlas, gl_RayFlagsTerminateOnFirstHitEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY, giRayOrigin, 0, normalize(MODEL2WORLDNORMAL * normalize(vec3(adjacentSides[i]))), length(vec3(adjacentSides[i])) * (giVoxelSize + 0.00001));
-								// if (!rayQueryProceedEXT(rqAdjacency)) {
-									WriteAmbientLighting1(giObjectIndex, iPos + adjacentSides[i], l, 1.0);
-								// } else {
-								// 	WriteAmbientLighting1(giObjectIndex, iPos + adjacentSides[i], l*0.5, 0.125);
-								// }
-							}
-						}
-						
-						float luminance = dot(ray.color.rgb, vec3(0.2126, 0.7152, 0.0722));
-						GetGi(giIndex).bestSample = mix(GetGi(giIndex).bestSample, vec4(bounceDirection, luminance), clamp(luminance / max(1, luminance + GetGi(giIndex).bestSample.a), 0, 1));
+					if (nDotL < 0.001) {
+						bounceDirection = normalize(originalRay.normal + reflectDirection);
 					}
+					RAY_RECURSION_PUSH
+						RAY_GI_PUSH
+							float transparency = 1;
+							do {
+								traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_PLASMA|RAYTRACE_MASK_LIGHT, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, max(ATMOSPHERE_RAY_MIN_DISTANCE, GI_MAX_DISTANCE), 0);
+								ray.color.rgb += ray.plasma.rgb;
+								ray.color.rgb *= transparency;
+								rayOrigin += bounceDirection * (ray.hitDistance + ray.t2) - ray.normal * max(2.0, ray.hitDistance) * EPSILON;
+								transparency *= 1.0 - clamp(ray.color.a, 0, 1);
+							} while (transparency > 0.1 && ray.hitDistance > 0);
+						RAY_GI_POP
+					RAY_RECURSION_POP
+					ray.color.rgb *= pow(1-clamp(realDistance / GI_MAX_DISTANCE, 0, 1), 2.0) * bestSampleProbability;
+					vec3 l = WriteAmbientLighting0(giIndex, giObjectIndex, iPos, ApplyGamma(ray.color.rgb) * renderer.globalLightingFactor);
+					if (!rayIsGi) {
+						l = WriteAmbientLighting1(giObjectIndex, iPos, l, 1.0);
+						for (int i = 0; i < nbAdjacentSides; ++i) {
+							// rayQueryEXT rqAdjacency;
+							// rayQueryInitializeEXT(rqAdjacency, tlas, gl_RayFlagsTerminateOnFirstHitEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY, giRayOrigin, 0, normalize(MODEL2WORLDNORMAL * normalize(vec3(adjacentSides[i]))), length(vec3(adjacentSides[i])) * (giVoxelSize + 0.00001));
+							// if (!rayQueryProceedEXT(rqAdjacency)) {
+								WriteAmbientLighting1(giObjectIndex, iPos + adjacentSides[i], l, 1.0);
+							// } else {
+							// 	WriteAmbientLighting1(giObjectIndex, iPos + adjacentSides[i], l*0.5, 0.125);
+							// }
+						}
+					}
+					
+					float luminance = dot(ray.color.rgb, vec3(0.2126, 0.7152, 0.0722));
+					GetGi(giIndex).bestSample = mix(GetGi(giIndex).bestSample, vec4(bounceDirection, luminance), clamp(luminance / max(1, luminance + GetGi(giIndex).bestSample.a), 0, 1));
 					ray = originalRay;
 					
 				// }
@@ -665,7 +729,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 						imageStore(img_normal_or_debug, COORDS, vec4(ambient * xenonRendererData.config.debugViewScale, 1));
 					}
 				}
-				ray.color.rgb += albedo * ambient;
+				ray.color.rgb += albedo * max(vec3(smoothstep(1000, 0, realDistance)) * 0.01, ambient);
 			}
 		}
 	}
@@ -675,11 +739,6 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 	if (dot(surface.emission,surface.emission) > 0) ray.ssao = 0;
 	
 	if (rayIsGi) return;
-	
-	// Ambient
-	if (!rayIsUnderWater) {
-		ray.color.rgb += vec3((renderer.options & RENDERER_OPTION_INDIRECT_LIGHTING) != 0? 0.004 : 0.1) * albedo * smoothstep(1000, 0, realDistance);
-	}
 	
 	// Debug Time
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_RAYHIT_TIME) {

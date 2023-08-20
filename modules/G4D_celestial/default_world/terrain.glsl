@@ -1,4 +1,4 @@
-#include "xenon/renderer/shaders/perlint.glsl"
+#include "xenon/renderer/shaders/perlint.inc.glsl"
 
 #define TERRAIN_UNIT_MULTIPLIER 1000
 #define M *TERRAIN_UNIT_MULTIPLIER
@@ -81,7 +81,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 		const vec3 rockColor = vec3(0.2, 0.2, 0.2);
 		const vec3 dirtColor = vec3(0.2, 0.1, 0.07);
 		const vec3 clayColor = vec3(0.8, 0.6, 0.3);
-		const vec3 sandColor = vec3(0.9, 0.5, 0.2);
+		const vec3 sandColor = vec3(0.8, 0.4, 0.15) * 0.5;
 		const vec3 underwaterColor = vec3(0.1, 0.3, 0.2);
 		const vec3 floorColor = vec3(0.1, 0.05, 0.03);
 		vec3 color = vec3(mix(rockColor, snowColor, smoothstep(0.5, 0.6, heightRatio)));

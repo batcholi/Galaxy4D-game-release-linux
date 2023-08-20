@@ -7,7 +7,7 @@ void main() {
 	ray.normal = vec3(0);
 	ray.hitDistance = -1;
 	ray.t2 = xenonRendererData.config.zFar;
-	ray.id = -1;
+	ray.aimID = 0;
 	ray.renderableIndex = -1;
 	ray.geometryIndex = -1;
 	ray.primitiveIndex = -1;

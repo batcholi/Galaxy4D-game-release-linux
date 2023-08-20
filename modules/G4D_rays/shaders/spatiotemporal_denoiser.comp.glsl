@@ -150,7 +150,7 @@ vec4 GetColorVariance9(in ivec2 coords) {
 	return sqrt(m2 - m1*m1);
 }
 
-layout(local_size_x = 17, local_size_y = 17) in;
+layout(local_size_x = XENON_RENDERER_SCREEN_COMPUTE_LOCAL_SIZE_X + 1, local_size_y = XENON_RENDERER_SCREEN_COMPUTE_LOCAL_SIZE_Y + 1) in;
 
 // bool ReprojectHistoryCoord(inout ivec2 coord) {
 // 	coord = ivec2(round(vec2(coord) + imageLoad(img_motion, coord).rg * vec2(imageSize) * 0.5));

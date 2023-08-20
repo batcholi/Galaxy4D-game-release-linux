@@ -33,7 +33,7 @@ void main() {
 	const vec2 uv = vec2(coords) / imageSize(img_depth);
 	const vec3 viewSpacePos = GetViewSpacePositionFromDepthAndUV(GetDepth(uv), uv);
 	if (-viewSpacePos.z > maxDistance) return;
-	float kernelSize = mix(0.5, 5.0, smoothstep(1.0, maxDistance, -viewSpacePos.z));
+	float kernelSize = mix(0.125, 5.0, smoothstep(1.0, maxDistance, -viewSpacePos.z));
 	
 	float occluded = 0;
 	for (int i = 0; i < nbSamples; ++i) {

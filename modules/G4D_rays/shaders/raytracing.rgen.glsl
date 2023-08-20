@@ -65,7 +65,7 @@ void main() {
 		if (transparency == 1 && isMiddleOfScreen) {
 			renderer.aim.localPosition = ray.localPosition;
 			renderer.aim.geometryIndex = ray.geometryIndex;
-			renderer.aim.aimID = ray.id;
+			renderer.aim.aimID = ray.aimID;
 			renderer.aim.worldSpaceHitNormal = ray.normal;
 			renderer.aim.primitiveIndex = ray.primitiveIndex;
 			renderer.aim.worldSpacePosition = ray.worldPosition;
@@ -87,7 +87,7 @@ void main() {
 		// Reflections on Glass
 		if ((renderer.options & RENDERER_OPTION_GLASS_REFLECTIONS) != 0 && !glassReflection && ray.color.a != 1.0 && ray.hitDistance > 0.0 && ray.hitDistance < 200.0 && dot(ray.normal, initialRayDirection) < 0.0) {
 			glassReflection = true;
-			glassReflectionStrength = Fresnel((renderer.viewMatrix * vec4(ray.worldPosition, 1)).xyz, normalize(WORLD2VIEWNORMAL * ray.normal), 1.45);
+			glassReflectionStrength = Fresnel((renderer.viewMatrix * vec4(ray.worldPosition, 1)).xyz, normalize(WORLD2VIEWNORMAL * ray.normal), 1.15);
 			glassReflectionOrigin = ray.worldPosition + ray.normal * max(2.0, ray.hitDistance) * EPSILON * 10;
 			glassReflectionDirection = reflect(initialRayDirection, ray.normal);
 		}
@@ -101,6 +101,11 @@ void main() {
 		}
 	} while (ray.color.a < 1.0 && transparency > 0.1 && ray.hitDistance > 0.0 && ray.hitDistance < 200.0);
 	vec4 color = ray.color + ray.plasma;
+	
+	float hitDistance = ray.hitDistance;
+	if (hitDistance < 0) {
+		hitDistance = xenonRendererData.config.zFar;
+	}
 
 	// Reflections on Glass / Glossy
 	if (glassReflection) {
@@ -144,6 +149,15 @@ void main() {
 		depth = 0;
 	}
 	
+	// Negative depth means underwater
+	if (RAY_IS_UNDERWATER) {
+		hitDistance *= -1;
+	}
+	
+	imageStore(img_composite, COORDS, max(vec4(0), color));
+	imageStore(img_depth, COORDS, vec4(depth));
+	imageStore(img_motion, COORDS, vec4(motion, hitDistance));
+	
 	// Trace environment audio
 	const int MAX_AUDIO_BOUNCE = 2;
 	const uvec2 environment_audio_trace_size = uvec2(100, 100);
@@ -156,27 +170,27 @@ void main() {
 		float audible = 1.0;
 		do {
 			ray.hitDistance = -1;
-			uint rayMask = RAYTRACE_MASK_TERRAIN | RAYTRACE_MASK_ENTITY | RAYTRACE_MASK_HYDROSPHERE;
+			uint rayMask = RAYTRACE_MASK_TERRAIN | RAYTRACE_MASK_ENTITY | RAYTRACE_MASK_HYDROSPHERE | RAYTRACE_MASK_PLASMA;
 			RAY_SHADOW_PUSH
 				traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT/*flags*/, rayMask/*rayMask*/, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0.0, rayDir, 1000, 0/*payloadIndex*/);
 			RAY_SHADOW_POP
 			if (ray.hitDistance == -1 || ray.renderableIndex == -1) {
 				ray.hitDistance = 1000;
-				testcolor = vec3(1);
+				testcolor = vec3(0);
 				atomicAdd(renderer.environmentAudio.miss, 1);
 				break;
 			} else {
 				uint hitMask = renderer.tlasInstances[ray.renderableIndex].instanceCustomIndex_and_mask >> 24;
 				if (hitMask == RAYTRACE_MASK_TERRAIN) {
 					atomicAdd(renderer.environmentAudio.terrain, 1);
-					testcolor = vec3(1,0,0);
+					testcolor = mix(testcolor, vec3(1,0,0), audible);
 					break;
 				}
 				else if (hitMask == RAYTRACE_MASK_ENTITY) {
 					renderer.environmentAudio.audibleRenderables[ray.renderableIndex].audible = max(renderer.environmentAudio.audibleRenderables[ray.renderableIndex].audible, audible);
+					atomicAdd(renderer.environmentAudio.object, 1);
+					testcolor = mix(testcolor, vec3(0,1,0), audible);
 					if (envAudioBounce++ == MAX_AUDIO_BOUNCE) {
-						atomicAdd(renderer.environmentAudio.object, 1);
-						testcolor = vec3(0,1,0);
 						break;
 					}
 					rayOrigin += rayDir * ray.hitDistance + ray.normal * EPSILON;
@@ -186,18 +200,26 @@ void main() {
 				else if (hitMask == RAYTRACE_MASK_HYDROSPHERE) {
 					atomicAdd(renderer.environmentAudio.hydrosphere, 1);
 					renderer.environmentAudio.hydrosphereDistance = atomicMin(renderer.environmentAudio.hydrosphereDistance, int(ray.hitDistance * 100));
-					testcolor = vec3(0,0,1);
+					testcolor = mix(testcolor, vec3(0,0,1), audible);
+					break;
+				}
+				else if (hitMask == RAYTRACE_MASK_PLASMA) {
+					renderer.environmentAudio.audibleRenderables[ray.renderableIndex].audible = max(renderer.environmentAudio.audibleRenderables[ray.renderableIndex].audible, audible);
+					atomicAdd(renderer.environmentAudio.object, 1);
+					testcolor = mix(testcolor, vec3(1,1,0), audible);
+					// if (envAudioBounce++ == MAX_AUDIO_BOUNCE) {
+						break;
+					// }
+					// rayOrigin += rayDir * ray.hitDistance + rayDir * ray.t2;
+					// audible *= 0.5;
+				} else {
 					break;
 				}
 			}
 		} while (true);
-		if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_ENVIRONMENT_AUDIO) imageStore(img_normal_or_debug, COORDS, vec4(testcolor * ray.hitDistance * 0.1, 1));
+		if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_ENVIRONMENT_AUDIO) imageStore(img_normal_or_debug, COORDS, vec4(testcolor, 1));
 		ray = originalRay;
 	}
-	
-	imageStore(img_composite, COORDS, max(vec4(0), color));
-	imageStore(img_depth, COORDS, vec4(depth));
-	imageStore(img_motion, COORDS, vec4(motion, 1));
 	
 	switch (xenonRendererData.config.debugViewMode) {
 		default:

@@ -1,6 +1,6 @@
 // ALSO INCLUDED IN GLSL
 
-#include "xenon/graphics/interface.glsl"
+#include "xenon/graphics/interface.inc.glsl"
 #ifdef __cplusplus
 	#pragma once
 	using namespace glm;
@@ -61,8 +61,18 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) Block {
 			return vec3(position.x, position.y, position.z) * 0.25f;
 		}
 		
+		vec3 GetCenterOfMass() const {
+			return GetSize() * 0.5f;
+		}
+		
 		vec3 GetSize() const {
 			return vec3(size_x, size_y, size_z) * 0.25f + 0.25f;
+		}
+		
+		// using a volume displacement ratio of 0.2, a mass of 1 kg is floating and a mass of 5 kg is sinking
+		double GetMass() const {
+			if (type == 255/*ENTITY_OCCUPANCY_INDEX*/) return 0;
+			return 1.0 * (size_x+1) * (size_y+1) * (size_z+1);
 		}
 		
 		void SetOccupancy(const glm::ivec3& a, const glm::ivec3& b) {
@@ -72,6 +82,23 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) Block {
 			size_x = uint16_t(glm::clamp(glm::max(a.x, b.x) - position.x, 0, 11 - position.x));
 			size_y = uint16_t(glm::clamp(glm::max(a.y, b.y) - position.y, 0, 11 - position.y));
 			size_z = uint16_t(glm::clamp(glm::max(a.z, b.z) - position.z, 0, 11 - position.z));
+		}
+		
+		static void MakeOccupancySpan(const glm::ivec3& a, const glm::ivec3& b, glm::ivec3& positionSpan, glm::ivec3& sizeSpan) {
+			positionSpan.x = glm::min(a.x, b.x);
+			positionSpan.y = glm::min(a.y, b.y);
+			positionSpan.z = glm::min(a.z, b.z);
+			sizeSpan.x = glm::max(a.x, b.x) - positionSpan.x;
+			sizeSpan.y = glm::max(a.y, b.y) - positionSpan.y;
+			sizeSpan.z = glm::max(a.z, b.z) - positionSpan.z;
+		}
+		
+		static vec3 GetPositionFromSpan(const glm::ivec3& positionSpan) {
+			return vec3(positionSpan.x, positionSpan.y, positionSpan.z) * 0.25f;
+		}
+		
+		static vec3 GetSizeFromSpan(const glm::ivec3& sizeSpan) {
+			return vec3(sizeSpan.x, sizeSpan.y, sizeSpan.z) * 0.25f + 0.25f;
 		}
 		
 		bool IsDifferentShapeOrSize (const Block& other) const {

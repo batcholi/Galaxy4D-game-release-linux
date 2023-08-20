@@ -2,7 +2,7 @@
 
 // #define SHADER_SURFACE
 // #include "game/graphics/common.inc.glsl"
-// #include "xenon/renderer/shaders/perlint.glsl"
+// #include "xenon/renderer/shaders/perlint.inc.glsl"
 
 // const vec3 sandColor = vec3(224.0/255, 185.0/255, 120.0/255);
 // const vec3 rockColor = vec3(184.0/255, 175.0/255, 160.0/255);

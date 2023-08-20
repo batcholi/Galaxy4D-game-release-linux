@@ -2,7 +2,7 @@
 
 // Filter by brightness & horizontal blur pass
 
-layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x = XENON_RENDERER_SCREEN_COMPUTE_LOCAL_SIZE_X, local_size_y = XENON_RENDERER_SCREEN_COMPUTE_LOCAL_SIZE_Y) in;
 
 const float sigma = 3.0;
 const int blurSize = int(sigma*3);

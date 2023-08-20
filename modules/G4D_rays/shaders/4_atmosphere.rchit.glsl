@@ -187,7 +187,8 @@ void main() {
 		}
 	}
 	
-	vec4 fog = vec4(rayleighScattering + mieScattering + GetEmissionColor(temperature) * stepSize, pow(clamp(maxDepth/thickness, 0, 1), 2));
+	vec3 emission = GetEmissionColor(temperature) * 1e10;
+	vec4 fog = vec4(rayleighScattering + mieScattering + emission, pow(clamp(maxDepth/thickness, 0, 1), 2));
 	
 	ray.color.rgb += fog.rgb * fog.a * renderer.globalLightingFactor;
 	ray.color.a += pow(fog.a, 32);

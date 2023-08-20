@@ -1,4 +1,4 @@
-#include "box_common.glsl"
+#include "box_common.inc.glsl"
 #include "xenon/renderer/shaders/common.inc.glsl"
 
 const vec2 vertices[4] = {

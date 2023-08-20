@@ -1,4 +1,4 @@
-#include "xenon/graphics/interface.glsl"
+#include "xenon/graphics/interface.inc.glsl"
 #ifdef __cplusplus
 	#pragma once
 	using namespace glm;

@@ -1,4 +1,4 @@
-#include "text_common.glsl"
+#include "text_common.inc.glsl"
 #include "xenon/renderer/shaders/common.inc.glsl"
 
 layout(location = 0) out flat uint out_char;

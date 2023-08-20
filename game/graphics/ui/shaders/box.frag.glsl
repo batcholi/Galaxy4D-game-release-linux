@@ -1,4 +1,4 @@
-#include "box_common.glsl"
+#include "box_common.inc.glsl"
 #include "xenon/renderer/shaders/common.inc.glsl"
 
 layout(location = 0) in vec2 in_uv;

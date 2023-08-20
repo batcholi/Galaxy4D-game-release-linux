@@ -19,6 +19,7 @@ hitAttributeEXT SphereAttr sphereAttr;
 		surface.normal = normalize(hitPoint1 - spherePosition);\
 	}\
 	surface.color = ComputeSurfaceColor(ray.localPosition) * GEOMETRY.material.color;\
+	surface.aabbData = AABB.data;\
 }
 
 #include "entity.inc.glsl"

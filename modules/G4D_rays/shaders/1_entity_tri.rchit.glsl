@@ -8,5 +8,6 @@ hitAttributeEXT vec3 hitAttribs;
 	surface.normal = ComputeSurfaceNormal(barycentric_coords);\
 	surface.color = ComputeSurfaceColor(barycentric_coords) * GEOMETRY.material.color;\
 	surface.barycentricCoords = barycentric_coords;\
+	surface.aabbData = 0;\
 
 #include "entity.inc.glsl"

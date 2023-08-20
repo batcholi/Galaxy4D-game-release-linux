@@ -14,11 +14,17 @@
 #define RENDERABLE_TYPE_CLUTTER_TRI 7
 #define RENDERABLE_TYPE_PLASMA 8
 #define RENDERABLE_TYPE_LIGHT_BOX 9
+#define RENDERABLE_TYPE_CLUTTER_PIPE 10
 
 #define SURFACE_CALLABLE_PAYLOAD 0
 #define VOXEL_SURFACE_CALLABLE_PAYLOAD 1
 
 #define LIGHT_LUMINOSITY_VISIBLE_THRESHOLD 0.05
+
+// Up to 32 flags
+#define PIPE_FLAG_BOX			(1u << 0)
+#define PIPE_FLAG_CAPSULE		(1u << 1)
+#define PIPE_FLAG_STRIPES		(1u << 2)
 
 BUFFER_REFERENCE_STRUCT_READONLY(16) AabbData {
 	aligned_float32_t aabb[6];
@@ -34,6 +40,7 @@ struct SunData {
 };
 STATIC_ASSERT_ALIGNED16_SIZE(SunData, 32)
 
+// This is per geometry, not per renderable, and is unique to each individual instance
 BUFFER_REFERENCE_STRUCT_READONLY(16) RenderableData {
 	aligned_f32vec3 emission; // always added to output color
 	aligned_float32_t colorMix; // 0 means don't use this color, 1 means use this color fully, values between (0-1) means mix between material's color and this custom color
@@ -129,10 +136,14 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) GeometryData {
 STATIC_ASSERT_ALIGNED16_SIZE(GeometryData, 128)
 
 BUFFER_REFERENCE_STRUCT_READONLY(16) RenderableInstanceData {
-	BUFFER_REFERENCE_ADDR(GeometryData) geometries;
+	aligned_f32mat4 giTransform;
+	BUFFER_REFERENCE_ADDR(GeometryData) geometries; // shared data between all renderables loaded from the same mesh file
 	aligned_uint64_t data; // custom data defined per renderable type (defaults to an array of RenderableData per geometry)
+	aligned_uint32_t giID;
+	aligned_uint32_t _unused1;
+	aligned_uint64_t _unused2;
 };
-STATIC_ASSERT_ALIGNED16_SIZE(RenderableInstanceData, 16)
+STATIC_ASSERT_ALIGNED16_SIZE(RenderableInstanceData, 96)
 
 BUFFER_REFERENCE_STRUCT(16) AimBuffer {
 	aligned_f32vec3 localPosition;
@@ -160,13 +171,13 @@ STATIC_ASSERT_ALIGNED16_SIZE(AimBuffer, 96)
 		vec3 emission;
 		float roughness;
 		vec3 localPosition;
-		float ior;
+		float specular;
 		uint64_t renderableData;
 		uint64_t aabbData;
 		uint32_t renderableIndex;
 		uint32_t geometryIndex;
 		uint32_t primitiveIndex;
-		uint32_t aimID;
+		float ior;
 		vec2 uv1;
 		vec2 uv2;
 		vec3 barycentricCoords;

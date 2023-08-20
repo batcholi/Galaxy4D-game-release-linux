@@ -12,7 +12,7 @@ hitAttributeEXT hit {
 };
 
 void SetHitWater() {
-	ray.id = gl_InstanceCustomIndexEXT;
+	ray.aimID = gl_InstanceCustomIndexEXT;
 	ray.renderableIndex = gl_InstanceID;
 	ray.geometryIndex = gl_GeometryIndexEXT;
 	ray.primitiveIndex = gl_PrimitiveID;
@@ -89,7 +89,7 @@ void main() {
 	ray.hitDistance = gl_HitTEXT;
 	ray.normal = vec3(0,1,0);
 	ray.color = vec4(vec3(0), 1);
-	ray.id = -1;
+	ray.aimID = 0;
 	ray.renderableIndex = -1;
 	
 	if (recursions >= RAY_MAX_RECURSION) {

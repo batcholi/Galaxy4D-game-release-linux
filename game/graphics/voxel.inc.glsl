@@ -70,7 +70,7 @@
 #ifdef __cplusplus // C++
 	#include <stdint.h>
 	#include <glm/glm.hpp>
-	#include <xenon/graphics/interface.glsl>
+	#include <xenon/graphics/interface.inc.glsl>
 	static_assert(sizeof(VOXEL_INDEX_TYPE) == 2);
 	union VoxelIndex {
 		VOXEL_INDEX_TYPE index;

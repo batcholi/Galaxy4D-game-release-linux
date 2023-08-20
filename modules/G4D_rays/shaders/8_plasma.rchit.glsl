@@ -19,11 +19,11 @@ float radius = PlasmaData(AABB.data).radius;
 float aerospikeEffect = 1; // 0 or 1
 
 float density(vec3 pos) {
-	float distToCenterLine = length(pos.xy);
-	float aerospikeRadius = radius * max(mix(0, 0.8, aerospikeEffect), pow(1.0 - pos.z / depth, aerospikeEffect * 2));
-	if (distToCenterLine < aerospikeRadius && pos.z > 0.0 && pos.z < depth) {
-		float beginFactor = smoothstep(0, 0.02, pos.z / depth);
-		float endFactor = 1.0 - pos.z / depth;
+	float distToCenterLine = length(pos.xz);
+	float aerospikeRadius = radius * max(mix(0, 0.8, aerospikeEffect), pow(1.0 - pos.y / depth, aerospikeEffect * 2));
+	if (distToCenterLine < aerospikeRadius && pos.y > 0.0 && pos.y < depth) {
+		float beginFactor = smoothstep(0, 0.0, pos.y / depth);
+		float endFactor = 1.0 - pos.y / depth;
 		float centerFactor = 1.0 - distToCenterLine / aerospikeRadius;
 		return beginFactor * endFactor * centerFactor;
 	}
@@ -31,28 +31,13 @@ float density(vec3 pos) {
 }
 
 void main() {
-	if (RAY_RECURSIONS >= RAY_MAX_RECURSION) {
-		ray.hitDistance = -1;
-		ray.t2 = 0;
-		ray.id = gl_InstanceCustomIndexEXT;
-		ray.renderableIndex = gl_InstanceID;
-		ray.geometryIndex = gl_GeometryIndexEXT;
-		ray.primitiveIndex = gl_PrimitiveID;
-		ray.localPosition = gl_ObjectRayOriginEXT + gl_ObjectRayDirectionEXT * gl_HitTEXT;
-		ray.worldPosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-		ray.ssao = 0;
-		ray.color = vec4(0,0,0,1);
-		ray.normal = vec3(0);
-		return;
-	}
-	
 	float exaustDensity = PlasmaData(AABB.data).density;
 	float exaustTemperature = PlasmaData(AABB.data).temperature;
 	
-	if (RAY_IS_GI) {
+	if (RAY_IS_GI || RAY_IS_SHADOW) {
 		ray.hitDistance = t1;
 		ray.t2 = t2;
-		ray.id = gl_InstanceCustomIndexEXT;
+		ray.aimID = gl_InstanceCustomIndexEXT;
 		ray.renderableIndex = gl_InstanceID;
 		ray.geometryIndex = gl_GeometryIndexEXT;
 		ray.primitiveIndex = gl_PrimitiveID;
@@ -66,9 +51,23 @@ void main() {
 		return;
 	}
 	
-	RAY_RECURSION_PUSH
-		traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, gl_WorldRayOriginEXT, t1 + EPSILON * 0.1, gl_WorldRayDirectionEXT, xenonRendererData.config.zFar, 0);
-	RAY_RECURSION_POP
+	if (RAY_RECURSIONS + 2 < RAY_MAX_RECURSION) {
+		RAY_RECURSION_PUSH
+			traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, gl_WorldRayOriginEXT, t1 + EPSILON * 0.1, gl_WorldRayDirectionEXT, xenonRendererData.config.zFar, 0);
+		RAY_RECURSION_POP
+	} else {
+		ray.hitDistance = t1;
+		ray.t2 = t2;
+		ray.aimID = gl_InstanceCustomIndexEXT;
+		ray.renderableIndex = gl_InstanceID;
+		ray.geometryIndex = gl_GeometryIndexEXT;
+		ray.primitiveIndex = gl_PrimitiveID;
+		ray.localPosition = gl_ObjectRayOriginEXT + gl_ObjectRayDirectionEXT * gl_HitTEXT;
+		ray.worldPosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+		ray.ssao = 0;
+		ray.color = vec4(1,1,1,0);
+		ray.normal = vec3(0);
+	}
 	
 	const float stepSize = 0.005;
 	const float maxDist = depth + radius;
@@ -82,7 +81,7 @@ void main() {
 	
 	for (int i = 0; i < 1000; ++i) {
 		vec3 pos = gl_ObjectRayOriginEXT + gl_ObjectRayDirectionEXT * (t1 + t);
-		pos += offset * pos.z / depth;
+		pos += offset * pos.y / depth;
 		float d = density(pos);
 		accumulatedDensity += pow(d, 2.0) * exaustDensity * stepSize;
 		accumulatedLight += GetEmissionColor(d * exaustTemperature) * stepSize;
@@ -92,7 +91,8 @@ void main() {
 		}
 	}
 	
-	ray.plasma.rgb += accumulatedLight + accumulatedDensity;
+	accumulatedDensity = accumulatedDensity;
+	ray.plasma.rgb += max(accumulatedLight, vec3(0.2,0.4,1.0) * accumulatedDensity);
 	ray.plasma.a += accumulatedDensity;
 	ray.ssao = clamp(ray.ssao - accumulatedDensity * 0.2, 0.0, 1.0);
 	
