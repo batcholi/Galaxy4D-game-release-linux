@@ -79,9 +79,9 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) Block {
 			position.x = uint16_t(glm::clamp(glm::min(a.x, b.x), 0, 11));
 			position.y = uint16_t(glm::clamp(glm::min(a.y, b.y), 0, 11));
 			position.z = uint16_t(glm::clamp(glm::min(a.z, b.z), 0, 11));
-			size_x = uint16_t(glm::clamp(glm::max(a.x, b.x) - position.x, 0, 11 - position.x));
-			size_y = uint16_t(glm::clamp(glm::max(a.y, b.y) - position.y, 0, 11 - position.y));
-			size_z = uint16_t(glm::clamp(glm::max(a.z, b.z) - position.z, 0, 11 - position.z));
+			size_x = uint16_t(glm::clamp(glm::max(a.x, b.x) - position.x, 0, 15/*11 - position.x*/));
+			size_y = uint16_t(glm::clamp(glm::max(a.y, b.y) - position.y, 0, 15/*11 - position.y*/));
+			size_z = uint16_t(glm::clamp(glm::max(a.z, b.z) - position.z, 0, 15/*11 - position.z*/));
 		}
 		
 		void SetSpan(const glm::ivec3& pos, const glm::ivec3& size) {
