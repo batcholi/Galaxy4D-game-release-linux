@@ -85,12 +85,28 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) Block {
 		}
 		
 		void SetSpan(const glm::ivec3& pos, const glm::ivec3& size) {
+			SetPositionSpan(pos);
+			SetSizeSpan(size);
+		}
+		
+		void SetPositionSpan(const glm::ivec3& pos) {
 			position.x = uint16_t(glm::clamp(pos.x, 0, 11));
 			position.y = uint16_t(glm::clamp(pos.y, 0, 11));
 			position.z = uint16_t(glm::clamp(pos.z, 0, 11));
+		}
+		
+		void SetSizeSpan(const glm::ivec3& size) {
 			size_x = uint16_t(glm::clamp(size.x, 0, 15));
 			size_y = uint16_t(glm::clamp(size.y, 0, 15));
 			size_z = uint16_t(glm::clamp(size.z, 0, 15));
+		}
+		
+		glm::ivec3 GetPositionSpan() const {
+			return glm::ivec3(position.x, position.y, position.z);
+		}
+		
+		glm::ivec3 GetSizeSpan() const {
+			return glm::ivec3(size_x, size_y, size_z);
 		}
 		
 		static void MakeOccupancySpan(const glm::ivec3& a, const glm::ivec3& b, glm::ivec3& positionSpan, glm::ivec3& sizeSpan) {
