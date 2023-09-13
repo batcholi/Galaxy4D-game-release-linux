@@ -76,7 +76,7 @@ void main() {
 		RayPayload originalRay = ray;
 		traceRayEXT(tlas, gl_RayFlagsNoOpaqueEXT, RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, gl_WorldRayOriginEXT, t1, gl_WorldRayDirectionEXT, ray.hitDistance<=0? xenonRendererData.config.zFar : ray.hitDistance, 0);
 		originalRay.color.rgb = ray.color.rgb;
-		originalRay.color.a = 1;
+		originalRay.color.a = ray.color.a;
 		originalRay.plasma = ray.plasma;
 		originalRay.ssao = min(ray.ssao, originalRay.ssao);
 		ray = originalRay;

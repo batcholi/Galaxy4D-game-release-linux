@@ -189,17 +189,19 @@ void main() {
 			}
 		}
 		
+		if (ray.hitDistance == -1 || rayIsShadow) {
+			SetHitWater();
+		}
 		ray.hitDistance = gl_HitTEXT;
 		ray.t2 = WATER_MAX_LIGHT_DEPTH;
 		ray.color.rgb = reflection * fresnel + refraction * (1-fresnel);
+		ray.color.a = 1;
 		ray.normal = surfaceNormal;
 		
 		// if (gl_HitTEXT < giantWavesMaxDistance) {
 		// 	vec3 worldPositionGiantWaves = vec3(-renderer.worldOrigin) + gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
 		// 	ray.color.rgb += length(ray.color.rgb) * 0.033 * vec3(GiantWaterWaves(worldPositionGiantWaves)) * giantWavesStrength * 4;
 		// }
-		
-		SetHitWater();
 		
 	} else {
 		// Underwater
