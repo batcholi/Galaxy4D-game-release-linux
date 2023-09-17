@@ -4,7 +4,7 @@ layout(local_size_x = XENON_RENDERER_SCREEN_COMPUTE_LOCAL_SIZE_X + 1, local_size
 
 ivec2 compute_coord = ivec2(gl_GlobalInvocationID.xy);
 
-layout(push_constant) uniform PushConstants {
+layout(push_constant) uniform PushConstant {
 	ivec2 blurDir;
 	uint imageIndex;
 };

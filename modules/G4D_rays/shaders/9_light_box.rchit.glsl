@@ -25,7 +25,7 @@ void main() {
 			ray.plasma = vec4(0);
 			vec3 bounceDirection = normalize(MODEL2WORLDNORMAL * vec3(0,-1,0));
 			float maxDistance = ray.localPosition.y - AABB_MIN.y;
-			traceRayEXT(tlas, 0, RAYTRACE_MASK_ENTITY, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, originalRay.worldPosition, 0, bounceDirection, maxDistance, 0);
+			traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_ENTITY, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, originalRay.worldPosition, 0, bounceDirection, maxDistance, 0);
 			if (ray.hitDistance == -1) {
 				ray = originalRay;
 			}

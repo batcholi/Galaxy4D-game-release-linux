@@ -1,6 +1,7 @@
 #include "lighting.inc.glsl"
 
 void main() {
+	uint rayRecursions = RAY_RECURSIONS;
 	
 	ray.hitDistance = gl_HitTEXT;
 	ray.aimID = gl_InstanceCustomIndexEXT;
@@ -41,7 +42,7 @@ void main() {
 	
 	// Debug UV1
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_UVS) {
-		if (!RAY_IS_SHADOW && RAY_RECURSIONS == 0) imageStore(img_normal_or_debug, COORDS, vec4(surface.uv1, 0, 1));
+		if (!RAY_IS_SHADOW && rayRecursions == 0) imageStore(img_normal_or_debug, COORDS, vec4(surface.uv1, 0, 1));
 		ray.normal = vec3(0);
 		ray.color = vec4(0,0,0,1);
 		return;
@@ -54,7 +55,7 @@ void main() {
 		return;
 	}
 	
-	if (RAY_RECURSIONS == 0) {
+	if (rayRecursions == 0 || (rayRecursions == 1 && !RAY_IS_GI && !RAY_IS_SHADOW)) {
 		imageStore(img_primary_albedo_roughness, COORDS, vec4(surface.color.rgb, surface.roughness));
 		if (COORDS == ivec2(gl_LaunchSizeEXT.xy) / 2) {
 			renderer.aim.uv = surface.uv1;

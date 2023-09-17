@@ -95,22 +95,22 @@ void main() {
 			if (abs(horizon.y) > 1.495 && abs(horizon.y) < 1.505 && horizon.x > -0.5 && horizon.x < 0.5) col = vec3(0.3);
 			
 			// Center marker
-			if (screen.y > -0.04 && screen.y < 0.04 && (screen.x < -0.8 || screen.x > 0.8)) col = vec3(0.4, 0.4, 0); // thick yellow lines
-			if (screen.y > -0.01 && screen.y < 0.01 && (screen.x < -0.6 || screen.x > 0.6)) col = vec3(0.4, 0.4, 0); // thin yellow lines
-			if (screen.y > -0.04 && screen.y < 0.04 && screen.x > -0.04 && screen.x < 0.04) col = vec3(0.4, 0.4, 0); // Center yellow square
+			if (screen.y > -0.02 && screen.y < 0.02 && (screen.x < -0.8 || screen.x > 0.8)) col = vec3(0.5, 0.5, 0); // thick yellow lines
+			if (screen.y > -0.005 && screen.y < 0.005 && (screen.x < -0.6 || screen.x > 0.6)) col = vec3(0.5, 0.5, 0); // thin yellow lines
+			if (screen.y > -0.02 && screen.y < 0.02 && screen.x > -0.02 && screen.x < 0.02) col = vec3(0.5, 0.5, 0); // Center yellow square
 			
 			// Velocity
 			vec2 v = velocity.xz / 20;
 			if (length(v) > 0.2) v = normalize(v) / 5;
-			vec2 vcenter = vec2(-0.705, -0.705) + v;
-			if (screen.y > -0.9 && screen.y < -0.5 && screen.x > -0.71 && screen.x < -0.7) col = vec3(0, 0.3, 0); // horizontal line
-			if (screen.y > -0.71 && screen.y < -0.7 && screen.x > -0.9 && screen.x < -0.5) col = vec3(0, 0.3, 0); // vertical line
+			vec2 vcenter = vec2(0.705, -0.705) + v;
+			if (screen.y > -0.9 && screen.y < -0.5 && screen.x > 0.7 && screen.x < 0.71) col = vec3(0, 0.3, 0); // horizontal line
+			if (screen.y > -0.71 && screen.y < -0.7 && screen.x > 0.5 && screen.x < 0.9) col = vec3(0, 0.3, 0); // vertical line
 			if (screen.y > vcenter.y - 0.03 && screen.y < vcenter.y + 0.03 && screen.x > vcenter.x - 0.03 && screen.x < vcenter.x + 0.03) col = vec3(0.5, 0, 0); // Red square
 		} else
 		// ORBIT MODE
 		if (mode == 2) {
 			// Orbital parameters for ellipse
-			const float globeSize = 0.72;
+			const float globeSize = 0.8;
 			float r_periapsis = periapsis + planetInnerRadius;
 			float r_apoapsis = apoapsis + planetInnerRadius;
 			float a = (r_periapsis + r_apoapsis) / 2;
@@ -123,9 +123,9 @@ void main() {
 			if (ballScale > 1.0) {
 				ballScale = 1;
 				ellipseScale = a / planetInnerRadius;
-			} else if (ballScale < 0.25) {
-				ballScale = 0.25;
-				ellipseScale = a / planetInnerRadius / 4;
+			} else if (ballScale < 0.5) {
+				ballScale = 0.5;
+				ellipseScale = a / planetInnerRadius / 2;
 			}
 			float ellipseOffset = 0;
 			vec2 navballscreen = screen / globeSize / ballScale;
@@ -136,17 +136,45 @@ void main() {
 			}
 			navballscreen.x += ballOffset;
 			vec2 horizon = screenRotation * navballscreen;
-			horizon.y -= pitch * pow(1 - pow(abs(horizon.x), 2), 0.5);
+			float heading_0 = horizon.x - (heading / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_plus90 = horizon.x - ((heading - 90) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_minus90 = horizon.x - ((heading + 90) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_plus180 = horizon.x - ((heading - 180) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_minus180 = horizon.x - ((heading + 180) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			horizon.y -= pitch * sqrt(1 - pow(abs(horizon.x), 2));
+			float horizontalLineFade = 1-clamp(abs(horizon.x), 0, 1);
+			float verticalLineFade = 1-clamp(abs(horizon.y), 0, 1);
 			
 			// Horizon Color
 			col = groundColor; // Brown
 			if (horizon.y > 0) col = skyColor; // Blue sky
 			
 			// Middle line
-			if (horizon.y > -0.005 && horizon.y < 0.005) col = vec3(0.25);
+			if (horizon.y > -0.005 && horizon.y < 0.005) col = vec3(0.3);
 			
-			// Center marker
-			if (navballscreen.y > -0.04 && navballscreen.y < 0.04 && navballscreen.x > -0.04 && navballscreen.x < 0.04) col = vec3(0.3, 0.3, 0); // Center yellow square
+			// Heading lines
+			// 0 (north)
+			if (heading_0 > -0.005 && heading_0 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_0 - 0.045, horizon.y - 0.03)));
+			// 180 (south)
+			if (heading_plus180 > -0.005 && heading_plus180 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			if (heading_minus180 > -0.005 && heading_minus180 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(1, vec2(heading_plus180 - 0.04, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(8, vec2(heading_plus180, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_plus180 + 0.045, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(1, vec2(heading_minus180 - 0.04, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(8, vec2(heading_minus180, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_minus180 + 0.045, horizon.y - 0.03)));
+			// +90
+			if (heading_plus90 > -0.005 && heading_plus90 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(-5, vec2(heading_plus90 - 0.045, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(9, vec2(heading_plus90, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_plus90 + 0.045, horizon.y - 0.03)));
+			// -90
+			if (heading_minus90 > -0.005 && heading_minus90 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(-3, vec2(heading_minus90 - 0.045, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(9, vec2(heading_minus90, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_minus90 + 0.045, horizon.y - 0.03)));
 			
 			// Circle Mask
 			float navballCircle = saturate(length(navballscreen));
@@ -156,26 +184,29 @@ void main() {
 			if (r_periapsis > 0 && apoapsis > periapsis && apoapsis > 0.01) {
 				vec2 position = screen * a / globeSize / ellipseScale;
 				float ellipse = pow(position.x / a + ellipseOffset, 2.0) + pow(position.y / b, 2.0);
-				if (navballCircle == 1 && ellipse < (1 + 0.01 / ellipseScale) && ellipse > (1 - 0.02 / ellipseScale)) col = mix(col, vec3(0,0.5,0.5), ellipse);
-				// Position in orbit
-				if (screen.y < -0.8 && screen.y > -0.95 && abs(screen.x) < 0.95) {
-					float t = clamp((altitude - r_periapsis + planetInnerRadius) / (r_apoapsis - r_periapsis), 0.03, 0.97);
+				if (navballCircle == 1 && ellipse < (1 + 0.01 / ellipseScale) && ellipse > (1 - 0.02 / ellipseScale)) col = mix(col, (r_periapsis > planetOuterRadius)? vec3(0,0.5,0.5) : vec3(0.5,0,0), ellipse);
+				// Altitude ratio between periapsis and apoapsis
+				if (screen.y < -0.92) {
+					float delta = abs(r_apoapsis - r_periapsis);
+					float t = clamp((altitude - r_periapsis + planetInnerRadius) / delta, 0.03, 0.97);
 					float s = screen.x * -0.5 + 0.5;
 					float diff = abs(t-s);
-					col = mix(vec3(0.1), vec3(0,0.5,0.5), smoothstep(0.99, 1.0, 1-diff));
+					if (delta < 1000) col = vec3(0,0.5,0.5);
+					else col = mix(vec3(0.1), vec3(0,0.5,0.5), smoothstep(mix(0.995, 0.0, smoothstep(100000, 1000, delta)), 1.0, 1-diff));
 				}
 			}
 			
 			// Speed Indicator
+			float speed = length(velocity);
 			if (targetSpeed > 0) {
-				float speed = length(velocity);
-				if (screen.y > -0.5 && screen.y < 0.5 && screen.x > 0.75 && screen.x < 0.95) {
-					float t = clamp((speed - targetSpeed) / targetSpeedRange, -1, +1) * 0.5;
-					if (screen.y > t-0.01 && screen.y < t+0.01) {
-						col = vec3(0,1,0);
+				if (screen.y > -0.505 && screen.y < 0.505 && screen.x > 0.88) {
+					float delta = speed - targetSpeed;
+					float t = clamp(delta / targetSpeedRange, -1, +1) * 0.5;
+					if (screen.y > t-0.005 && screen.y < t+0.005 || abs(delta) < 1.0) {
+						col = vec3(0,0.5,0.5);
 					} else {
-						if (screen.y > -0.005 && screen.y < 0.005) {
-							col = vec3(0.5);
+						if (screen.y > -0.01 && screen.y < 0.01) {
+							col = vec3(0);
 						} else {
 							col = vec3(0.1);
 						}
@@ -185,13 +216,14 @@ void main() {
 			
 			// Altitude Indicator
 			if (targetAltitude > 0) {
-				if (screen.y > -0.5 && screen.y < 0.5 && screen.x > -0.95 && screen.x < -0.75) {
-					float t = clamp((altitude - targetAltitude) / targetAltitudeRange, -1, +1) * 0.5;
-					if (screen.y > t-0.01 && screen.y < t+0.01) {
-						col = vec3(0,1,0);
+				if (screen.y > -0.5 && screen.y < 0.5 && screen.x < -0.88) {
+					float delta = altitude - targetAltitude;
+					float t = clamp(delta / targetAltitudeRange, -1, +1) * 0.5;
+					if (screen.y > t-0.005 && screen.y < t+0.005 || abs(delta) < 2000.0) {
+						col = vec3(0,0.5,0.5);
 					} else {
-						if (screen.y > -0.005 && screen.y < 0.005) {
-							col = vec3(0.5);
+						if (screen.y > -0.01 && screen.y < 0.01) {
+							col = vec3(0);
 						} else {
 							col = vec3(0.1);
 						}
@@ -199,6 +231,10 @@ void main() {
 				}
 			}
 
+			// Center marker
+			if (navballscreen.y > -0.004 && navballscreen.y < 0.004 && navballscreen.x > -1 && navballscreen.x < 1) col = mix(col, vec3(0), 1-clamp(abs(screen.x), 0, 1)); // Center line (horizontal)
+			if (navballscreen.y > -1 && navballscreen.y < 1 && navballscreen.x > -0.004 && navballscreen.x < 0.004) col = mix(col, vec3(0), 1-clamp(abs(screen.y), 0, 1)); // Center line (vertical)
+			
 			// Prograde/Retrograde Orbital Velocity (cross)
 			vec3 v = normalize(velocity);
 			bool prograde = dot(forward, v) > 0;
@@ -207,8 +243,8 @@ void main() {
 			if (length(cross) > 1) cross = normalize(cross);
 			vec2 navballScreenCross = navballscreen - cross;
 			float crossDistance = length(navballScreenCross);
-			if (crossDistance < 0.1 && (abs(navballScreenCross).y < 0.01 || abs(navballScreenCross).x < 0.01)) {
-				col = prograde ? vec3(0.7) : vec3(0.7, 0, 0);
+			if (crossDistance < 0.1 && (abs(navballScreenCross).y < 0.005 || abs(navballScreenCross).x < 0.005)) {
+				col = prograde ? vec3(0.8) : vec3(0.8, 0, 0);
 			}
 
 			// Prograde/Retrograde Target Direction (circle)
@@ -219,8 +255,8 @@ void main() {
 				if (!t_prograde) circle *= -1;
 				if (length(circle) > 1) circle = normalize(circle);
 				float circleDistance = length(navballscreen - circle);
-				if (circleDistance < 0.08 && circleDistance > 0.06) {
-					col = t_prograde ? vec3(0.7) : vec3(0.7, 0, 0);
+				if (circleDistance < 0.04 && circleDistance > 0.03) {
+					col = t_prograde ? vec3(0.8) : vec3(0.8, 0, 0);
 				}
 			}
 			
@@ -230,7 +266,14 @@ void main() {
 			const float globeSize = 0.72;
 			vec2 navballscreen = screen / globeSize;
 			vec2 horizon = screenRotation * navballscreen;
-			horizon.y -= pitch * pow(1 - pow(abs(horizon.x), 2), 0.5);
+			float heading_0 = horizon.x - (heading / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_plus90 = horizon.x - ((heading - 90) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_minus90 = horizon.x - ((heading + 90) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_plus180 = horizon.x - ((heading - 180) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			float heading_minus180 = horizon.x - ((heading + 180) / 180 * PI) * sqrt(1 - pow(abs(horizon.y), 2));
+			horizon.y -= pitch * sqrt(1 - pow(abs(horizon.x), 2));
+			float horizontalLineFade = 1-clamp(abs(horizon.x), 0, 1);
+			float verticalLineFade = 1-clamp(abs(horizon.y), 0, 1);
 			
 			// Horizon Color
 			col = groundColor; // Brown
@@ -239,13 +282,38 @@ void main() {
 			// Middle line
 			if (horizon.y > -0.005 && horizon.y < 0.005) col = vec3(0.25);
 			
-			// Center marker
-			if (navballscreen.y > -0.04 && navballscreen.y < 0.04 && navballscreen.x > -0.04 && navballscreen.x < 0.04) col = vec3(0.3, 0.3, 0); // Center yellow square
+			// Heading lines
+			// 0 (north)
+			if (heading_0 > -0.005 && heading_0 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_0 - 0.045, horizon.y - 0.03)));
+			// 180 (south)
+			if (heading_plus180 > -0.005 && heading_plus180 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			if (heading_minus180 > -0.005 && heading_minus180 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(1, vec2(heading_plus180 - 0.04, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(8, vec2(heading_plus180, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_plus180 + 0.045, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(1, vec2(heading_minus180 - 0.04, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(8, vec2(heading_minus180, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_minus180 + 0.045, horizon.y - 0.03)));
+			// +90
+			if (heading_plus90 > -0.005 && heading_plus90 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(-5, vec2(heading_plus90 - 0.045, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(9, vec2(heading_plus90, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_plus90 + 0.045, horizon.y - 0.03)));
+			// -90
+			if (heading_minus90 > -0.005 && heading_minus90 < +0.005) col = mix(col, vec3(0.3), verticalLineFade);
+			col = mix(col, vec3(0.4), writeNumber(-3, vec2(heading_minus90 - 0.045, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(9, vec2(heading_minus90, horizon.y - 0.03)));
+			col = mix(col, vec3(0.4), writeNumber(0, vec2(heading_minus90 + 0.045, horizon.y - 0.03)));
 			
 			// Circle Mask
 			float navballCircle = saturate(length(navballscreen));
 			col *= 1-pow(navballCircle, 10);
 
+			// Center marker
+			if (navballscreen.y > -0.004 && navballscreen.y < 0.004 && navballscreen.x > -1 && navballscreen.x < 1) col = mix(col, vec3(0), 1-clamp(abs(screen.x), 0, 1)); // Center line (horizontal)
+			if (navballscreen.y > -1 && navballscreen.y < 1 && navballscreen.x > -0.004 && navballscreen.x < 0.004) col = mix(col, vec3(0), 1-clamp(abs(screen.y), 0, 1)); // Center line (vertical)
+			
 			// Prograde/Retrograde Orbital Velocity (cross)
 			vec3 v = normalize(velocity);
 			bool prograde = dot(forward, v) > 0;
@@ -254,8 +322,8 @@ void main() {
 			if (length(cross) > 1) cross = normalize(cross);
 			vec2 navballScreenCross = navballscreen - cross;
 			float crossDistance = length(navballScreenCross);
-			if (crossDistance < 0.1 && (abs(navballScreenCross).y < 0.01 || abs(navballScreenCross).x < 0.01)) {
-				col = prograde ? vec3(0.7) : vec3(0.7, 0, 0);
+			if (crossDistance < 0.1 && (abs(navballScreenCross).y < 0.005 || abs(navballScreenCross).x < 0.005)) {
+				col = prograde ? vec3(0.8) : vec3(0.8, 0, 0);
 			}
 
 			// Prograde/Retrograde Target Direction (circle)
@@ -266,8 +334,8 @@ void main() {
 				if (!t_prograde) circle *= -1;
 				if (length(circle) > 1) circle = normalize(circle);
 				float circleDistance = length(navballscreen - circle);
-				if (circleDistance < 0.08 && circleDistance > 0.06) {
-					col = t_prograde ? vec3(0.7) : vec3(0.7, 0, 0);
+				if (circleDistance < 0.04 && circleDistance > 0.03) {
+					col = t_prograde ? vec3(0.8) : vec3(0.8, 0, 0);
 				}
 			}
 			

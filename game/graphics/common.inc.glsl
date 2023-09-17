@@ -26,6 +26,10 @@
 #define PIPE_FLAG_CAPSULE		(1u << 1)
 #define PIPE_FLAG_STRIPES		(1u << 2)
 
+// Up to 16 flags
+#define PLASMA_FLAG_AEROSPIKE	(1u << 0)
+#define PLASMA_FLAG_SHAKE 		(1u << 1)
+
 BUFFER_REFERENCE_STRUCT_READONLY(16) AabbData {
 	aligned_float32_t aabb[6];
 	aligned_uint64_t data; // Arbitrary data defined per-shader
@@ -101,10 +105,13 @@ STATIC_ASSERT_ALIGNED16_SIZE(WaterData, 32)
 BUFFER_REFERENCE_STRUCT_READONLY(16) PlasmaData {
 	aligned_float32_t depth;
 	aligned_float32_t radius;
-	aligned_float32_t density; // [1 - 10000] (1000)
-	aligned_float32_t temperature; // [2000 - 20000] (10000)
+	aligned_float32_t temperature; // [1000 - 10000] (5000)
+	aligned_uint16_t mask;
+	aligned_uint16_t flags;
+	aligned_f32vec3 color;
+	aligned_float32_t density; // [10 - 10000] (500)
 };
-STATIC_ASSERT_ALIGNED16_SIZE(PlasmaData, 16)
+STATIC_ASSERT_ALIGNED16_SIZE(PlasmaData, 32)
 
 struct GeometryMaterial {
 	aligned_f32vec4 color;

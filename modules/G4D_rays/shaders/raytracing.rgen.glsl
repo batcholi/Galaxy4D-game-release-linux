@@ -44,6 +44,7 @@ void main() {
 	
 	ray.hitDistance = -1;
 	ray.t2 = 0;
+	ray.normal = vec3(0);
 	ray.color = vec4(0);
 	ray.ssao = 0;
 	vec3 rayOrigin = initialRayPosition;
@@ -60,7 +61,7 @@ void main() {
 		primaryRayMask |= RAYTRACE_MASK_LIGHT;
 	}
 	do {
-		traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT/*flags*/, primaryRayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, renderer.cameraZNear, initialRayDirection, xenonRendererData.config.zFar, 0/*payloadIndex*/);
+		traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT|gl_RayFlagsOpaqueEXT/*flags*/, primaryRayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, renderer.cameraZNear, initialRayDirection, xenonRendererData.config.zFar, 0/*payloadIndex*/);
 		// Aim
 		if (transparency == 1 && isMiddleOfScreen) {
 			renderer.aim.localPosition = ray.localPosition;
@@ -109,7 +110,7 @@ void main() {
 
 	// Reflections on Glass / Glossy
 	if (glassReflection) {
-		traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, glassReflectionOrigin, 0, glassReflectionDirection, xenonRendererData.config.zFar, 1);
+		traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT|gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, glassReflectionOrigin, 0, glassReflectionDirection, xenonRendererData.config.zFar, 1);
 		color.rgb = mix(color.rgb, glassReflectionRay.color.rgb, glassReflectionStrength);
 	}
 	
@@ -168,11 +169,12 @@ void main() {
 		rayOrigin = initialRayPosition - initialRayDirection * 0.1 + rayDir * 0.2;
 		int envAudioBounce = 0;
 		float audible = 1.0;
+		bool hitPlasma = false;
 		do {
 			ray.hitDistance = -1;
-			uint rayMask = RAYTRACE_MASK_TERRAIN | RAYTRACE_MASK_ENTITY | RAYTRACE_MASK_HYDROSPHERE | RAYTRACE_MASK_PLASMA;
+			uint rayMask = RAYTRACE_MASK_TERRAIN | RAYTRACE_MASK_ENTITY | RAYTRACE_MASK_HYDROSPHERE | (hitPlasma?0:RAYTRACE_MASK_PLASMA);
 			RAY_SHADOW_PUSH
-				traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT/*flags*/, rayMask/*rayMask*/, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0.0, rayDir, 1000, 0/*payloadIndex*/);
+				traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT|gl_RayFlagsOpaqueEXT/*flags*/, rayMask/*rayMask*/, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0.0, rayDir, 1000, 0/*payloadIndex*/);
 			RAY_SHADOW_POP
 			if (ray.hitDistance == -1 || ray.renderableIndex == -1) {
 				ray.hitDistance = 1000;
@@ -205,13 +207,9 @@ void main() {
 				}
 				else if (hitMask == RAYTRACE_MASK_PLASMA) {
 					renderer.environmentAudio.audibleRenderables[ray.renderableIndex].audible = max(renderer.environmentAudio.audibleRenderables[ray.renderableIndex].audible, audible);
-					atomicAdd(renderer.environmentAudio.object, 1);
+					// atomicAdd(renderer.environmentAudio.object, 1);
 					testcolor = mix(testcolor, vec3(1,1,0), audible);
-					// if (envAudioBounce++ == MAX_AUDIO_BOUNCE) {
-						break;
-					// }
-					// rayOrigin += rayDir * ray.hitDistance + rayDir * ray.t2;
-					// audible *= 0.5;
+					hitPlasma = true;
 				} else {
 					break;
 				}

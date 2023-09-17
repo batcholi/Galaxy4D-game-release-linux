@@ -6,13 +6,16 @@ hitAttributeEXT hit {
 };
 
 void main() {
-	float density = PlasmaData(AABB.data).density;
-	float temperature = PlasmaData(AABB.data).temperature;
-	if (density > 0.0 || temperature > 1000.0) {
-		COMPUTE_BOX_INTERSECTION // retrieves T1 and T2
-		if RAY_STARTS_OUTSIDE_T1_T2 {
-			t2 = T2;
-			reportIntersectionEXT(T1, 0);
+	if (RAY_RECURSIONS < RAY_MAX_RECURSION) {
+		if (PlasmaData(AABB.data).density > 0.0) {
+			COMPUTE_BOX_INTERSECTION // retrieves T1 and T2
+			if RAY_STARTS_OUTSIDE_T1_T2 {
+				t2 = T2;
+				reportIntersectionEXT(T1, 0);
+			} else if RAY_STARTS_BETWEEN_T1_T2 {
+				t2 = T2;
+				reportIntersectionEXT(gl_RayTminEXT, 1);
+			}
 		}
 	}
 	DEBUG_RAY_INT_TIME

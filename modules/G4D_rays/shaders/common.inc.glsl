@@ -22,6 +22,7 @@
 #define SET1_BINDING_CLOUD_IMAGE 7
 #define SET1_BINDING_CLOUD_SAMPLER 8
 
+// xenonRendererData.config.debugViewMode
 #define RENDERER_DEBUG_VIEWMODE_NONE 0
 #define RENDERER_DEBUG_VIEWMODE_RAYGEN_TIME 1
 #define RENDERER_DEBUG_VIEWMODE_RAYHIT_TIME 2
@@ -199,27 +200,48 @@ STATIC_ASSERT_ALIGNED16_SIZE(RendererData, 3*64 + 12*8 + 5*16 + 4*8);
 
 #ifdef GLSL
 	#define BLUE_NOISE_NB_TEXTURES 64
-	#define INSTANCE renderer.renderableInstances[gl_InstanceID]
-	#define GEOMETRY INSTANCE.geometries[gl_GeometryIndexEXT]
-	#define AABB GEOMETRY.aabbs[gl_PrimitiveID]
-	#define AABB_MIN vec3(AABB.aabb[0], AABB.aabb[1], AABB.aabb[2])
-	#define AABB_MAX vec3(AABB.aabb[3], AABB.aabb[4], AABB.aabb[5])
-	#define AABB_CENTER ((AABB_MIN + AABB_MAX) * 0.5)
-	#define AABB_CENTER_INT ivec3(round(AABB_CENTER))
 	#define MODELVIEW (renderer.viewMatrix * mat4(gl_ObjectToWorldEXT))
 	#define MODEL2WORLDNORMAL inverse(transpose(mat3(gl_ObjectToWorldEXT)))
 	#define MVP (xenonRendererData.config.projectionMatrix * MODELVIEW)
 	#define MVP_AA (xenonRendererData.config.projectionMatrixWithTAA * MODELVIEW)
 	#define MVP_HISTORY (xenonRendererData.config.projectionMatrix * MODELVIEW_HISTORY)
-	#define COMPUTE_BOX_INTERSECTION \
-		const vec3 _tbot = (AABB_MIN - gl_ObjectRayOriginEXT) / gl_ObjectRayDirectionEXT;\
-		const vec3 _ttop = (AABB_MAX - gl_ObjectRayOriginEXT) / gl_ObjectRayDirectionEXT;\
-		const vec3 _tmin = min(_ttop, _tbot);\
-		const vec3 _tmax = max(_ttop, _tbot);\
-		const float T1 = max(_tmin.x, max(_tmin.y, _tmin.z));\
-		const float T2 = min(_tmax.x, min(_tmax.y, _tmax.z));
-	#define RAY_STARTS_OUTSIDE_T1_T2 (gl_RayTminEXT <= T1 && T1 < gl_RayTmaxEXT && T2 > T1)
-	#define RAY_STARTS_BETWEEN_T1_T2 (T1 <= gl_RayTminEXT && T2 >= gl_RayTminEXT)
+	#ifdef SHADER_COMP_RAYS
+		#define INSTANCE(q,commited) renderer.renderableInstances[rayQueryGetIntersectionInstanceIdEXT(q,commited)]
+		#define GEOMETRY(q,commited) INSTANCE(q,commited).geometries[rayQueryGetIntersectionGeometryIndexEXT(q,commited)]
+		#define AABB(q,commited) GEOMETRY(q,commited).aabbs[rayQueryGetIntersectionPrimitiveIndexEXT(q,commited)]
+		#define AABB_MIN(q,commited) vec3(AABB(q,commited).aabb[0], AABB(q,commited).aabb[1], AABB(q,commited).aabb[2])
+		#define AABB_MAX(q,commited) vec3(AABB(q,commited).aabb[3], AABB(q,commited).aabb[4], AABB(q,commited).aabb[5])
+		#define AABB_CENTER(q,commited) ((AABB_MIN(q,commited) + AABB_MAX(q,commited)) * 0.5)
+		#define AABB_CENTER_INT(q,commited) ivec3(round(AABB_CENTER(q,commited)))
+		#define COMPUTE_BOX_INTERSECTION(q,commited) \
+			vec3 _rayOrigin = rayQueryGetIntersectionObjectRayOriginEXT(q,commited);\
+			vec3 _rayDirection = rayQueryGetIntersectionObjectRayDirectionEXT(q,commited);\
+			const vec3 _tbot = (AABB_MIN(q,commited) - _rayOrigin) / _rayDirection;\
+			const vec3 _ttop = (AABB_MAX(q,commited) - _rayOrigin) / _rayDirection;\
+			const vec3 _tmin = min(_ttop, _tbot);\
+			const vec3 _tmax = max(_ttop, _tbot);\
+			const float T1 = max(_tmin.x, max(_tmin.y, _tmin.z));\
+			const float T2 = min(_tmax.x, min(_tmax.y, _tmax.z));
+		#define RAY_STARTS_OUTSIDE_T1_T2(q) (rayQueryGetRayTMinEXT(q) <= T1 && T2 > T1)
+		#define RAY_STARTS_BETWEEN_T1_T2(q) (T1 <= rayQueryGetRayTMinEXT(q) && T2 >= rayQueryGetRayTMinEXT(q))
+	#else
+		#define INSTANCE renderer.renderableInstances[gl_InstanceID]
+		#define GEOMETRY INSTANCE.geometries[gl_GeometryIndexEXT]
+		#define AABB GEOMETRY.aabbs[gl_PrimitiveID]
+		#define AABB_MIN vec3(AABB.aabb[0], AABB.aabb[1], AABB.aabb[2])
+		#define AABB_MAX vec3(AABB.aabb[3], AABB.aabb[4], AABB.aabb[5])
+		#define AABB_CENTER ((AABB_MIN + AABB_MAX) * 0.5)
+		#define AABB_CENTER_INT ivec3(round(AABB_CENTER))
+		#define COMPUTE_BOX_INTERSECTION \
+			const vec3 _tbot = (AABB_MIN - gl_ObjectRayOriginEXT) / gl_ObjectRayDirectionEXT;\
+			const vec3 _ttop = (AABB_MAX - gl_ObjectRayOriginEXT) / gl_ObjectRayDirectionEXT;\
+			const vec3 _tmin = min(_ttop, _tbot);\
+			const vec3 _tmax = max(_ttop, _tbot);\
+			const float T1 = max(_tmin.x, max(_tmin.y, _tmin.z));\
+			const float T2 = min(_tmax.x, min(_tmax.y, _tmax.z));
+		#define RAY_STARTS_OUTSIDE_T1_T2 (gl_RayTminEXT <= T1 && T1 < gl_RayTmaxEXT && T2 > T1)
+		#define RAY_STARTS_BETWEEN_T1_T2 (T1 <= gl_RayTminEXT && T2 >= gl_RayTminEXT)
+	#endif
 	#define COORDS ivec2(gl_LaunchIDEXT.xy)
 	#define WRITE_DEBUG_TIME {float elapsedTime = imageLoad(img_normal_or_debug, COORDS).a + float(clockARB() - startTime); imageStore(img_normal_or_debug, COORDS, vec4(0,0,0, elapsedTime));}
 	#define DEBUG_RAY_INT_TIME {if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_RAYINT_TIME) WRITE_DEBUG_TIME}
@@ -297,7 +319,7 @@ STATIC_ASSERT_ALIGNED16_SIZE(RendererData, 3*64 + 12*8 + 5*16 + 4*8);
 		uint seed = InitRandomSeed(stableSeed, coherentSeed);
 	#endif
 	
-	#ifdef SHADER_RCHIT
+	#if defined(SHADER_RCHIT) || defined(SHADER_RAHIT)
 		layout(location = 0) rayPayloadInEXT RayPayload ray;
 	#endif
 

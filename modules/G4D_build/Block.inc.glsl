@@ -79,9 +79,34 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) Block {
 			position.x = uint16_t(glm::clamp(glm::min(a.x, b.x), 0, 11));
 			position.y = uint16_t(glm::clamp(glm::min(a.y, b.y), 0, 11));
 			position.z = uint16_t(glm::clamp(glm::min(a.z, b.z), 0, 11));
-			size_x = uint16_t(glm::clamp(glm::max(a.x, b.x) - position.x, 0, 11 - position.x));
-			size_y = uint16_t(glm::clamp(glm::max(a.y, b.y) - position.y, 0, 11 - position.y));
-			size_z = uint16_t(glm::clamp(glm::max(a.z, b.z) - position.z, 0, 11 - position.z));
+			size_x = uint16_t(glm::clamp(glm::max(a.x, b.x) - position.x, 0, 15/*11 - position.x*/));
+			size_y = uint16_t(glm::clamp(glm::max(a.y, b.y) - position.y, 0, 15/*11 - position.y*/));
+			size_z = uint16_t(glm::clamp(glm::max(a.z, b.z) - position.z, 0, 15/*11 - position.z*/));
+		}
+		
+		void SetSpan(const glm::ivec3& pos, const glm::ivec3& size) {
+			SetPositionSpan(pos);
+			SetSizeSpan(size);
+		}
+		
+		void SetPositionSpan(const glm::ivec3& pos) {
+			position.x = uint16_t(glm::clamp(pos.x, 0, 11));
+			position.y = uint16_t(glm::clamp(pos.y, 0, 11));
+			position.z = uint16_t(glm::clamp(pos.z, 0, 11));
+		}
+		
+		void SetSizeSpan(const glm::ivec3& size) {
+			size_x = uint16_t(glm::clamp(size.x, 0, 15));
+			size_y = uint16_t(glm::clamp(size.y, 0, 15));
+			size_z = uint16_t(glm::clamp(size.z, 0, 15));
+		}
+		
+		glm::ivec3 GetPositionSpan() const {
+			return glm::ivec3(position.x, position.y, position.z);
+		}
+		
+		glm::ivec3 GetSizeSpan() const {
+			return glm::ivec3(size_x, size_y, size_z);
 		}
 		
 		static void MakeOccupancySpan(const glm::ivec3& a, const glm::ivec3& b, glm::ivec3& positionSpan, glm::ivec3& sizeSpan) {
@@ -111,6 +136,16 @@ BUFFER_REFERENCE_STRUCT_READONLY(16) Block {
 		
 		bool IsDifferent (const Block& other) const {
 			return IsDifferentShapeOrSize(other) || damage != other.damage || dirt != other.dirt || extra != other.extra || composition != other.composition || memcmp(color, other.color, sizeof(color)) != 0;
+		}
+		
+		bool HasSameOccupancy (const Block& other) {
+			const glm::ivec3 startA = glm::ivec3(position.x, position.y, position.z);
+			const glm::ivec3 endA = glm::ivec3(position.x + size_x, position.y + size_y, position.z + size_z);
+			const glm::ivec3 startB = glm::ivec3(other.position.x, other.position.y, other.position.z);
+			const glm::ivec3 endB = glm::ivec3(other.position.x + other.size_x, other.position.y + other.size_y, other.position.z + other.size_z);
+			if (startA.x != startB.x || startA.y != startB.y || startA.z != startB.z) return false;
+			if (endA.x != endB.x || endA.y != endB.y || endA.z != endB.z) return false;
+			return true;
 		}
 		
 	#else

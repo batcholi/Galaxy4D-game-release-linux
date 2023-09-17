@@ -128,6 +128,10 @@ float GetFogDensityUnderwater(in vec3 position, in float altitude) {
 	return pow(smoothstep(FOG_TERRAIN_MAX_DISTANCE, 0, altitude), 2);
 }
 
+layout(push_constant) uniform PushConstant {
+	vec3 windVelocity;
+};
+
 // read from img_resolved.a, write to img_cloud
 void main() {
 	
@@ -180,8 +184,6 @@ void main() {
 	
 	const vec3 fogColor = isUnderwater? vec3(0.005,0.02,0.04) : vec3(1,0.3,0.12);
 	
-	vec3 t = cross(terrainUpDir, vec3(0,0,1)) * float(renderer.timestamp) * 0.5;
-	
 	// raymarch
 	const int RAYMARCH_STEPS = 5;
 	float stepSize = (endDistance - startDistance) / (RAYMARCH_STEPS);
@@ -192,7 +194,7 @@ void main() {
 		float density = 0;
 		float hitDistance;
 		if (TraceRayHitTerrain(rayOrigin, 0, -terrainUpDir, FOG_TERRAIN_MAX_DISTANCE, hitDistance)) {
-			density = isUnderwater? GetFogDensityUnderwater(rayOrigin * 0.02, hitDistance) : GetFogDensity(rayOrigin * 0.02 + t, hitDistance);
+			density = isUnderwater? GetFogDensityUnderwater(rayOrigin * 0.02, hitDistance) : GetFogDensity((rayOrigin - windVelocity * float(renderer.timestamp)) * 0.02, hitDistance);
 			if (!TraceRayInShadow(rayOrigin, 0, lightDir, lightDistance)) {
 				fog.rgb += lightSource.color * lightPower * density * fogColor;
 				fog.a += density;

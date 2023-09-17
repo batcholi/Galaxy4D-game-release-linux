@@ -429,15 +429,15 @@ vec3 GetDirectLighting(in vec3 worldPosition, in vec3 normal, in vec3 albedo) {
 					if (j == 0) {
 						shadowTraceMask |= RAYTRACE_MASK_HYDROSPHERE;
 					}
-					if (isSunLight) {
-						float variation = Simplex(worldPosition + vec3(float(renderer.timestamp))) * 0.5 + 1.0;
-						rayDir = normalize(shadowRayDir + vec3(variation) * 0.01);
-					}
+					// if (isSunLight) { // this causes issues with eclipes
+					// 	float variation = Simplex(worldPosition + vec3(float(renderer.timestamp))) * 0.5 + 1.0;
+					// 	rayDir = normalize(shadowRayDir + vec3(variation) * 0.01);
+					// }
 				}
 				RAY_RECURSION_PUSH
 					RAY_SHADOW_PUSH
 						ray.color = vec4(0);
-						traceRayEXT(tlas, 0, shadowTraceMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, position, shadowRayStart, rayDir, lightsDistance[i] - EPSILON, 0);
+						traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, shadowTraceMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, position, shadowRayStart, rayDir, lightsDistance[i] - EPSILON, 0);
 					RAY_SHADOW_POP
 				RAY_RECURSION_POP
 				if (ray.hitDistance == -1) {
@@ -566,7 +566,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 				RAY_GI_PUSH
 					float transparency = 1;
 					do {
-						traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, xenonRendererData.config.zFar, 0);
+						traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT|gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, xenonRendererData.config.zFar, 0);
 						ray.color.rgb *= transparency;
 						rayOrigin += bounceDirection * ray.hitDistance - ray.normal * max(2.0, ray.hitDistance) * EPSILON;
 						transparency *= 1.0 - clamp(ray.color.a, 0, 1);
@@ -589,7 +589,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 				RAY_RECURSION_PUSH
 					float transparency = 1;
 					do {
-						traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
+						traceRayEXT(tlas, gl_RayFlagsCullBackFacingTrianglesEXT|gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, reflectDirection, xenonRendererData.config.zFar, 0);
 						ray.color.rgb *= transparency;
 						rayOrigin += reflectDirection * ray.hitDistance - ray.normal * max(2.0, ray.hitDistance) * EPSILON;
 						transparency *= 1.0 - clamp(ray.color.a, 0, 1);
@@ -663,7 +663,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 						RAY_GI_PUSH
 							float transparency = 1;
 							do {
-								traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_PLASMA|RAYTRACE_MASK_LIGHT, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, max(ATMOSPHERE_RAY_MIN_DISTANCE, GI_MAX_DISTANCE), 0);
+								traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_PLASMA|RAYTRACE_MASK_LIGHT, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, max(ATMOSPHERE_RAY_MIN_DISTANCE, GI_MAX_DISTANCE), 0);
 								ray.color.rgb += ray.plasma.rgb;
 								ray.color.rgb *= transparency;
 								rayOrigin += bounceDirection * (ray.hitDistance + ray.t2) - ray.normal * max(2.0, ray.hitDistance) * EPSILON;
@@ -701,7 +701,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 					vec3 bounceDirection = originalRay.normal;
 					RAY_RECURSION_PUSH
 						RAY_GI_PUSH
-							traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_ENTITY, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, originalRay.worldPosition, originalRay.hitDistance * 0.001, bounceDirection, 10000, 0);
+							traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_ENTITY, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, originalRay.worldPosition, originalRay.hitDistance * 0.001, bounceDirection, 10000, 0);
 							ambient = ray.color.rgb * 0.5;
 						RAY_GI_POP
 					RAY_RECURSION_POP
@@ -716,7 +716,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 								RayPayload originalRay = ray;
 								rayOrigin = originalRay.worldPosition + originalRay.normal * max(2.0, originalRay.hitDistance) * EPSILON;
 								vec3 bounceDirection = RandomCosineOnHemisphere(originalRay.normal);
-								traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, max(ATMOSPHERE_RAY_MIN_DISTANCE, GI_MAX_DISTANCE), 0);
+								traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayOrigin, 0, bounceDirection, max(ATMOSPHERE_RAY_MIN_DISTANCE, GI_MAX_DISTANCE), 0);
 								ambientGi = ray.color.rgb;
 								ray = originalRay;
 							RAY_GI_POP
@@ -729,8 +729,10 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 						imageStore(img_normal_or_debug, COORDS, vec4(ambient * xenonRendererData.config.debugViewScale, 1));
 					}
 				}
-				ray.color.rgb += albedo * max(vec3(smoothstep(1000, 0, realDistance)) * 0.01, ambient);
+				ray.color.rgb += albedo * ambient;
 			}
+		} else {
+			ray.color.rgb += albedo * vec3(smoothstep(20, 0, realDistance)) * 0.25;
 		}
 	}
 	

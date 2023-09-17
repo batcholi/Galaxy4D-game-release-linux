@@ -118,7 +118,7 @@ void main() {
 			vec3 rayDirection = gl_WorldRayDirectionEXT;
 			RayPayload originalRay = ray;
 			RAY_RECURSION_PUSH
-				traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_CLUTTER, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, t2, 0);
+				traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_CLUTTER, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, t2, 0);
 			RAY_RECURSION_POP
 			if (ray.hitDistance > 0) {
 				originalRay.t2 = min(ray.hitDistance * 0.99, originalRay.t2);
@@ -129,7 +129,7 @@ void main() {
 		return;
 	}
 	
-	uint rayMask = RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA;
+	uint rayMask = RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_CLUTTER;
 	if (rayIsGi && rayIsUnderwater) {
 		rayMask &= ~RAYTRACE_MASK_CLUTTER;
 	}
@@ -166,7 +166,7 @@ void main() {
 		uint reflectionMask = ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0)? rayMask : RAYTRACE_MASK_ATMOSPHERE;
 		RAY_RECURSION_PUSH
 			RAY_GI_PUSH
-				traceRayEXT(tlas, 0, reflectionMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, reflectDir, 10000, 0);
+				traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, reflectionMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, reflectDir, 10000, 0);
 			RAY_GI_POP
 		RAY_RECURSION_POP
 		reflection = ray.color.rgb;
@@ -178,7 +178,7 @@ void main() {
 				RAY_RECURSION_PUSH
 					RAY_UNDERWATER_PUSH
 						ray.color = vec4(0);
-						traceRayEXT(tlas, 0, rayMask & ~RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, rayDirection, WATER_MAX_LIGHT_DEPTH, 0);
+						traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, rayMask & ~RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, xenonRendererData.config.zNear, rayDirection, WATER_MAX_LIGHT_DEPTH, 0);
 					RAY_UNDERWATER_POP
 				RAY_RECURSION_POP
 				if (ray.hitDistance == -1) {
@@ -189,17 +189,19 @@ void main() {
 			}
 		}
 		
+		if (ray.hitDistance == -1 || rayIsShadow) {
+			SetHitWater();
+		}
 		ray.hitDistance = gl_HitTEXT;
 		ray.t2 = WATER_MAX_LIGHT_DEPTH;
 		ray.color.rgb = reflection * fresnel + refraction * (1-fresnel);
+		ray.color.a = 1;
 		ray.normal = surfaceNormal;
 		
 		// if (gl_HitTEXT < giantWavesMaxDistance) {
 		// 	vec3 worldPositionGiantWaves = vec3(-renderer.worldOrigin) + gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
 		// 	ray.color.rgb += length(ray.color.rgb) * 0.033 * vec3(GiantWaterWaves(worldPositionGiantWaves)) * giantWavesStrength * 4;
 		// }
-		
-		SetHitWater();
 		
 	} else {
 		// Underwater
@@ -224,7 +226,7 @@ void main() {
 			vec3 rayDirection = gl_WorldRayDirectionEXT;
 			RAY_RECURSION_PUSH
 				ray.color = vec4(0);
-				traceRayEXT(tlas, 0, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, distanceToSurface, 0);
+				traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, distanceToSurface, 0);
 			RAY_RECURSION_POP
 			
 			if (ray.hitDistance == -1) {
@@ -238,10 +240,10 @@ void main() {
 					RAY_RECURSION_PUSH
 						ray.color = vec4(0);
 						if ((renderer.options & RENDERER_OPTION_WATER_REFLECTIONS) != 0) {
-							traceRayEXT(tlas, 0, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
+							traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
 						} else {
 							RAY_GI_PUSH
-								traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
+								traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, maxRayDistance, 0);
 							RAY_GI_POP
 						}
 					RAY_RECURSION_POP
@@ -268,7 +270,7 @@ void main() {
 			vec3 rayDirection = gl_WorldRayDirectionEXT;
 			RAY_RECURSION_PUSH
 				ray.color = vec4(0);
-				traceRayEXT(tlas, 0, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, WATER_MAX_LIGHT_DEPTH_VERTICAL, 0);
+				traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, rayMask, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, rayPosition, gl_RayTminEXT, rayDirection, WATER_MAX_LIGHT_DEPTH_VERTICAL, 0);
 			RAY_RECURSION_POP
 			if (ray.hitDistance == -1) {
 				ray.hitDistance = maxLightDepth;
@@ -293,7 +295,7 @@ void main() {
 			RayPayload originalRay = ray;
 			RAY_RECURSION_PUSH
 				RAY_GI_PUSH
-					traceRayEXT(tlas, 0, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, -downDir, 10000, 0);
+					traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_ATMOSPHERE, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, worldPosition, 0, -downDir, 10000, 0);
 				RAY_GI_POP
 			RAY_RECURSION_POP
 			waterLighting = ray.color.rgb * WATER_OPACITY;

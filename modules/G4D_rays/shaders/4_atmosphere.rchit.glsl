@@ -66,9 +66,9 @@ void main() {
 	float nextHitDistance = xenonRendererData.config.zFar;
 	if (recursions < RAY_MAX_RECURSION && !rayIsGi) {
 		RAY_RECURSION_PUSH
-			traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t1, viewDir, t2, 0);
+			traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t1, viewDir, t2, 0);
 			if (ray.hitDistance == -1 && !hitInnerRadius) {
-				traceRayEXT(tlas, 0, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER|RAYTRACE_MASK_PLASMA, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t2 * 1.0001, viewDir, xenonRendererData.config.zFar, 0);
+				traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_CLUTTER, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, origin, t2 * 1.0001, viewDir, xenonRendererData.config.zFar, 0);
 			}
 			if (ray.hitDistance != -1) {
 				nextHitDistance = ray.hitDistance;
@@ -90,7 +90,11 @@ void main() {
 		g = 0.0;
 	}
 	
-	bool shadows = recursions == 0 && (renderer.options & RENDERER_OPTION_ATMOSPHERIC_SHADOWS) != 0 && hasHitSomethingWithinAtmosphere;
+	bool shadows = (renderer.options & RENDERER_OPTION_ATMOSPHERIC_SHADOWS) != 0 ;// && recursions == 0 && hasHitSomethingWithinAtmosphere;
+	float shadowsMinDistance = 0;
+	if (recursions > 0 || !hasHitSomethingWithinAtmosphere) {
+		shadowsMinDistance = outerRadius;
+	}
 	
 	// Start Ray-Marching in the atmosphere!
 	vec3 rayleighScattering = vec3(0);
@@ -149,7 +153,7 @@ void main() {
 						vec3 lightBitangent = normalize(cross(lightTangent, shadowRayDir));
 						shadowRayDir = normalize(shadowRayDir + diskPoint.x * lightTangent * mix(1, 12, smoothstep(24, 8, float(raymarchSteps))) + diskPoint.y * lightBitangent);
 						rayQueryEXT rq;
-						rayQueryInitializeEXT(rq, tlas, gl_RayFlagsTerminateOnFirstHitEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ENTITY, rayPos, 0, shadowRayDir, sunDistance);
+						rayQueryInitializeEXT(rq, tlas, gl_RayFlagsTerminateOnFirstHitEXT, RAYTRACE_MASK_TERRAIN, rayPos, shadowsMinDistance, shadowRayDir, sunDistance);
 						if (rayQueryProceedEXT(rq)) {
 							// Sunlight occluded by terrain
 							lightRayVisibility = 0;
