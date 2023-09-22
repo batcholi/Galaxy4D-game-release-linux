@@ -560,8 +560,12 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 			// Path Tracing
 			vec3 reflectDirection = reflect(gl_WorldRayDirectionEXT, originalRay.normal);
 			vec3 randomDirection = normalize(RandomInUnitHemiSphere(seed, originalRay.normal));
-			// vec3 randomDirection = RandomCosineOnHemisphere(originalRay.normal);
-			vec3 bounceDirection = normalize(mix(reflectDirection, randomDirection, min(0.5, surface.roughness*surface.roughness)));
+			vec3 bounceDirection;
+			if (RandomFloat(seed) < fresnel) {
+				bounceDirection = normalize(mix(reflectDirection, randomDirection, min(0.5, surface.roughness*surface.roughness)));
+			} else {
+				bounceDirection = randomDirection;
+			}
 			RAY_RECURSION_PUSH
 				RAY_GI_PUSH
 					float transparency = 1;
