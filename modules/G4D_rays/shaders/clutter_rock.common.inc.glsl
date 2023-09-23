@@ -92,23 +92,24 @@ mat3 RotationMatrix(vec3 axis, float angle) {
 				oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c);
 }
 
-const float terrainClutterDetail = 2.0f;
+const float terrainClutterDetail = 1.0f;
 
-vec3 rockSize = (AABB_MAX - AABB_MIN) * 0.5;
+
 vec3 rockPos = (AABB_MAX + AABB_MIN) * 0.5;
-float rockBoundingSize = max(rockSize.x, rockSize.z);
 float approxDistanceFromCamera = length((MODELVIEW * vec4(rockPos, 1)).xyz);
 float epsilon = 0.0001 * approxDistanceFromCamera;
-int detailOctavesHighRes = int(round(5*smoothstep(terrainClutterDetail*5, 0, approxDistanceFromCamera)));
+int detailOctavesHighRes = int(round(5*smoothstep(terrainClutterDetail*20, 0, approxDistanceFromCamera)));
 int detailOctavesMediumRes = detailOctavesHighRes / 2;
 int detailOctavesLowRes = detailOctavesHighRes / 4;
 int detailOctavesTextures = int(ceil(10*smoothstep(2, 0, approxDistanceFromCamera)));
 
 float minDetailSize = 0.001;
 float maxDetailSize = 0.02;
-float fadeDistance = terrainClutterDetail*10;
-float maxDrawDistance = 50;
-float drawDistanceFadeFactor = pow(smoothstep(fadeDistance, maxDrawDistance, approxDistanceFromCamera), 0.1); // 0 when closer, 1 when farther
+float fadeDistance = terrainClutterDetail*25;
+float maxDrawDistance = 100;
+
+vec3 rockSize = (AABB_MAX - AABB_MIN) * 0.5 * smoothstep(maxDrawDistance, fadeDistance, approxDistanceFromCamera);
+float rockBoundingSize = max(rockSize.x, rockSize.z);
 
 float GetDetailSize() {
 	uint seed_ = uint32_t(AABB.data);
@@ -126,9 +127,6 @@ float Sdf(vec3 p, float detailSize, int detailOctaves) {
 	}
 	
 	// Box
-	if (approxDistanceFromCamera > fadeDistance) {
-		rockSize *= pow(smoothstep(maxDrawDistance, fadeDistance, approxDistanceFromCamera), 0.1);
-	}
 	float d = sdRoundBox(p, rockSize, rnd2*max(rockSize.x, rockSize.z));
 	
 	// Cuts

@@ -33,7 +33,7 @@ void main() {
 	surface.color.rgb *= normal.y * 0.5 + 0.5;
 	surface.normal = normal;
 	surface.metallic = 0;
-	surface.roughness = 1;//clamp(FastSimplexFractal(ray.localPosition*223.18, detailOctavesTextures), 0.1, 1);
+	surface.roughness = 1;
 	surface.emission = vec3(0);
 	surface.ior = 1.45;
 	surface.specular = rocky*0.5;
