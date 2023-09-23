@@ -27,7 +27,8 @@ void main() {
 		Sdf(pos+e.yyx, detailSize, detailOctavesHighRes) - Sdf(pos-e.yyx, detailSize, detailOctavesHighRes)
 	));
 	uint seed_ = uint32_t(AABB.data);
-	surface.color = vec4(mix(vec3(0.5,0.4,0.3), vec3(0.8, 0.4, 0.15), RandomFloat(seed_)), 1);
+	float rocky = pow(RandomFloat(seed_), 2);
+	surface.color = vec4(mix(vec3(0.8, 0.4, 0.15), vec3(0.5,0.4,0.3), rocky), 1);
 	surface.color.rgb *= mix(0.3, 1.0, abs(FastSimplexFractal(ray.localPosition*55.658, detailOctavesTextures)));
 	surface.color.rgb *= normal.y * 0.5 + 0.5;
 	surface.normal = normal;
@@ -35,7 +36,7 @@ void main() {
 	surface.roughness = 1;//clamp(FastSimplexFractal(ray.localPosition*223.18, detailOctavesTextures), 0.1, 1);
 	surface.emission = vec3(0);
 	surface.ior = 1.45;
-	surface.specular = 1;
+	surface.specular = rocky*0.5;
 	
 	// Apply world space normal
 	ray.normal = normalize(MODEL2WORLDNORMAL * surface.normal);
