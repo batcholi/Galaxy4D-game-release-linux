@@ -106,7 +106,7 @@ int detailOctavesTextures = int(ceil(10*smoothstep(2, 0, approxDistanceFromCamer
 float minDetailSize = 0.001;
 float maxDetailSize = 0.02;
 float fadeDistance = terrainClutterDetail*25;
-float maxDrawDistance = 100;
+float maxDrawDistance = 200;
 
 vec3 rockSize = (AABB_MAX - AABB_MIN) * 0.5 * smoothstep(maxDrawDistance, fadeDistance, approxDistanceFromCamera);
 float rockBoundingSize = max(rockSize.x, rockSize.z);
