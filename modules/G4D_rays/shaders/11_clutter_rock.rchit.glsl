@@ -29,7 +29,7 @@ void main() {
 	uint seed_ = uint32_t(AABB.data);
 	float rocky = pow(RandomFloat(seed_), 2);
 	surface.color = vec4(mix(vec3(0.8, 0.4, 0.15), vec3(0.5,0.4,0.3), rocky), 1);
-	surface.color.rgb *= mix(0.3, 1.0, abs(FastSimplexFractal(ray.localPosition*55.658, detailOctavesTextures)));
+	surface.color.rgb *= mix(0.3, 1.0, (abs(FastSimplexFractal(ray.localPosition*255.658, detailOctavesTextures)) + (FastSimplexFractal(ray.localPosition*29.123, detailOctavesTextures)*0.5+0.5)) * 0.5);
 	surface.color.rgb *= normal.y * 0.5 + 0.5;
 	surface.normal = normal;
 	surface.metallic = 0;
