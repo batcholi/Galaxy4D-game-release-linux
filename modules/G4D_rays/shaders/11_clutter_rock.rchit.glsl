@@ -27,7 +27,7 @@ void main() {
 		Sdf(pos+e.yyx, detailSize, detailOctavesHighRes) - Sdf(pos-e.yyx, detailSize, detailOctavesHighRes)
 	));
 	surface.color = vec4(0.5,0.4,0.3, 1);
-	surface.color.rgb *= mix(0.3, 1.0, abs(FastSimplexFractal(ray.localPosition*759.658, detailOctavesTextures)));
+	surface.color.rgb *= mix(0.3, 1.0, abs(FastSimplexFractal(ray.localPosition*55.658, detailOctavesTextures)));
 	surface.color.rgb *= normal.y * 0.5 + 0.5;
 	surface.normal = normal;
 	surface.metallic = 0;

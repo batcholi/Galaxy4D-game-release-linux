@@ -104,12 +104,11 @@ int detailOctavesMediumRes = detailOctavesHighRes / 2;
 int detailOctavesLowRes = detailOctavesHighRes / 4;
 int detailOctavesTextures = int(ceil(10*smoothstep(2, 0, approxDistanceFromCamera)));
 
-float minDetailSize = 0.004; // +-4mm
-float maxDetailSize = 0.01; // +-10mm
+float minDetailSize = 0.001;
+float maxDetailSize = 0.02;
 float fadeDistance = terrainClutterDetail*10;
-float maxDrawDistance = 300;
+float maxDrawDistance = 50;
 float drawDistanceFadeFactor = pow(smoothstep(fadeDistance, maxDrawDistance, approxDistanceFromCamera), 0.1); // 0 when closer, 1 when farther
-float minSizeInScreen = smoothstep(5.0, 0.01, terrainClutterDetail) + 1;
 
 float GetDetailSize() {
 	uint seed_ = uint32_t(AABB.data);
@@ -123,7 +122,7 @@ float Sdf(vec3 p, float detailSize, int detailOctaves) {
 	
 	// Detail
 	if (detailOctaves > 0 && detailSize > 0) {
-		p += normalize(p) * detailSize * FastSimplexFractal(p*39.124+123.9*rnd1, detailOctaves);
+		p += normalize(p) * detailSize * FastSimplexFractal(p*14.124+12.9*rnd1, detailOctaves);
 	}
 	
 	// Box

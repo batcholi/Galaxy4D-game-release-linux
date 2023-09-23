@@ -1,8 +1,17 @@
 #define SHADER_RINT
 #include "clutter_rock.common.inc.glsl"
 
+ivec2 screenSize = ivec2(imageSize(img_post));
+
+float GetFixedBoundingSizeInScreenPixels(float distance, float size) {
+	float solidAngle;
+	if (distance == 0) solidAngle = PI;
+	else solidAngle = size / distance / radians(float(xenonRendererData.config.smoothFov));
+	return min(solidAngle, PI) * 2.0 * ((screenSize.x + screenSize.y) * 0.5);
+}
+
 void main() {
-	if (approxDistanceFromCamera < maxDrawDistance) {
+	if (approxDistanceFromCamera < maxDrawDistance && GetFixedBoundingSizeInScreenPixels(approxDistanceFromCamera, rockBoundingSize) > 5) {
 		float detailSize = GetDetailSize();
 		const int MAX_STEPS = 100;
 		float depth = gl_RayTminEXT;
@@ -11,7 +20,7 @@ void main() {
 			vec3 pos = gl_ObjectRayOriginEXT + gl_ObjectRayDirectionEXT * depth - rockPos;
 			float dist = Sdf(pos, detailSize, detailOctavesMediumRes);
 			depth += dist;
-			if (dist <= epsilon*0.2) {
+			if (dist <= epsilon*0.1) {
 				reportIntersectionEXT(max(gl_RayTminEXT, depth), 0);
 				break;
 			}
