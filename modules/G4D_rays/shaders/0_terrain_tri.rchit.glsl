@@ -8,6 +8,16 @@ float NormalDetail(in vec3 pos) {
 	return SimplexFractal(pos, 3);
 }
 
+#define APPLY_TERRAIN_BUMP_NOISE(_noiseFunc, _position, _normal, _waveHeight) {\
+	mat3 _TBN = mat3(vec3(1,0,0), vec3(0,0,1), _normal);\
+	float _altitudeTop = _noiseFunc(_position + vec3(0,0,1)*_waveHeight);\
+	float _altitudeBottom = _noiseFunc(_position - vec3(0,0,1)*_waveHeight);\
+	float _altitudeRight = _noiseFunc(_position + vec3(1,0,0)*_waveHeight);\
+	float _altitudeLeft = _noiseFunc(_position - vec3(1,0,0)*_waveHeight);\
+	vec3 _bump = normalize(vec3((_altitudeRight-_altitudeLeft), (_altitudeBottom-_altitudeTop), 2));\
+	_normal = normalize(_TBN * _bump);\
+}
+
 void main() {
 	
 	ray.hitDistance = gl_HitTEXT;
@@ -55,8 +65,8 @@ void main() {
 	
 	// Rough terrain
 	if (surface.roughness > 0) {
-		vec3 scale = vec3(100);
-		APPLY_NORMAL_BUMP_NOISE(NormalDetail, surface.localPosition * scale, surface.normal, surface.roughness * 0.05)
+		vec3 scale = vec3(50);
+		APPLY_TERRAIN_BUMP_NOISE(NormalDetail, surface.localPosition * scale, surface.normal, surface.roughness * 0.05)
 	}
 	
 	// Debug UV1

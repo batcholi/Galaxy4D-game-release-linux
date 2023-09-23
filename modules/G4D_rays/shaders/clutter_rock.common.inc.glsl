@@ -118,7 +118,7 @@ float GetDetailSize() {
 float Sdf(vec3 p, float detailSize, int detailOctaves) {
 	uint seed_ = uint32_t(AABB.data);
 	float rnd1 = RandomFloat(seed_);
-	float rnd2 = RandomFloat(seed_);
+	float rnd2 = pow(RandomFloat(seed_), 0.5) * 0.8;
 	
 	// Detail
 	if (detailOctaves > 0 && detailSize > 0) {

@@ -11,7 +11,7 @@ float GetFixedBoundingSizeInScreenPixels(float distance, float size) {
 }
 
 void main() {
-	if (approxDistanceFromCamera < maxDrawDistance && GetFixedBoundingSizeInScreenPixels(approxDistanceFromCamera, rockBoundingSize) > 2) {
+	if (approxDistanceFromCamera < maxDrawDistance && GetFixedBoundingSizeInScreenPixels(approxDistanceFromCamera, rockBoundingSize) > 4) {
 		float detailSize = GetDetailSize();
 		const int MAX_STEPS = 100;
 		float depth = gl_RayTminEXT;

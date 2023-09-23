@@ -702,11 +702,11 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 				vec3 ambient = vec3(0);
 				if (recursions < renderer.rays_max_bounces && realDistance >= GI_MAX_DISTANCE/2) {
 					RayPayload originalRay = ray;
-					vec3 bounceDirection = originalRay.normal;
+					vec3 bounceDirection = RandomCosineOnHemisphere(originalRay.normal);
 					RAY_RECURSION_PUSH
 						RAY_GI_PUSH
 							traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, RAYTRACE_MASK_TERRAIN|RAYTRACE_MASK_ATMOSPHERE|RAYTRACE_MASK_HYDROSPHERE|RAYTRACE_MASK_ENTITY, 0/*rayType*/, 0/*nbRayTypes*/, 0/*missIndex*/, originalRay.worldPosition, originalRay.hitDistance * 0.001, bounceDirection, 10000, 0);
-							ambient = ray.color.rgb * 0.5;
+							ambient = pow(ray.color.rgb, vec3(0.5)) * 0.25;
 						RAY_GI_POP
 					RAY_RECURSION_POP
 					ray = originalRay;
