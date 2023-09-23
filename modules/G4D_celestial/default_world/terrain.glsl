@@ -64,7 +64,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 	mountains = _moutainStep(variationf * 0.5, variationf * 0.6, mountains);
 	mountains = _moutainStep(variationf * 0.8, variationf * 0.85, mountains);
 	
-	double detail = perlint64f(pos, 1 M, 1 M, 6) * 0.05 M;
+	double detail = perlint64f(pos * u64vec3(6,1,2), 1 M, 1 M, 6) * 0.15 M;
 	
 	double height = config.baseRadiusMillimeters
 		+ max(0.0, mountains)
