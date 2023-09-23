@@ -1,0 +1,31 @@
+#define SHADER_RINT
+#include "clutter_rock.common.inc.glsl"
+
+void main() {
+	if (approxDistanceFromCamera < maxDrawDistance) {
+		float detailSize = GetDetailSize();
+		const int MAX_STEPS = 100;
+		float depth = gl_RayTminEXT;
+		float lastDist = 1e100;
+		for (int i = 0; i < MAX_STEPS; ++i) {
+			vec3 pos = gl_ObjectRayOriginEXT + gl_ObjectRayDirectionEXT * depth - rockPos;
+			float dist = Sdf(pos, detailSize, detailOctavesMediumRes);
+			depth += dist;
+			if (dist <= epsilon*0.2) {
+				reportIntersectionEXT(max(gl_RayTminEXT, depth), 0);
+				break;
+			}
+			if (dist > lastDist + maxDetailSize*2) break;
+			if (depth > gl_RayTmaxEXT) break;
+			lastDist = dist;
+		}
+	}
+	DEBUG_RAY_INT_TIME
+	
+	
+	
+	// COMPUTE_BOX_INTERSECTION
+	// if RAY_STARTS_OUTSIDE_T1_T2 {
+	// 	reportIntersectionEXT(T1, 0);
+	// }
+}
