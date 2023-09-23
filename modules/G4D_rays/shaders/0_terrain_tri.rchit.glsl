@@ -4,9 +4,9 @@
 
 hitAttributeEXT vec3 hitAttribs;
 
-// float NormalDetail(in vec3 pos) {
-// 	return SimplexFractal(pos * 0.3, 2);
-// }
+float NormalDetail(in vec3 pos) {
+	return SimplexFractal(pos, 3);
+}
 
 void main() {
 	
@@ -52,6 +52,12 @@ void main() {
 	// if (OPTION_TEXTURES) {
 		executeCallableEXT(GEOMETRY.material.surfaceIndex, SURFACE_CALLABLE_PAYLOAD);
 	// }
+	
+	// Rough terrain
+	if (surface.roughness > 0) {
+		vec3 scale = vec3(100);
+		APPLY_NORMAL_BUMP_NOISE(NormalDetail, surface.localPosition * scale, surface.normal, surface.roughness * 0.05)
+	}
 	
 	// Debug UV1
 	if (xenonRendererData.config.debugViewMode == RENDERER_DEBUG_VIEWMODE_UVS) {
