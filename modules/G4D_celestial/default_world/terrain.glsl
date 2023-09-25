@@ -76,11 +76,11 @@ double GetHeightMap(dvec3 normalizedPos) {
 
 #ifdef GLSL
 	vec4 GetSplat(dvec3 posNorm, double height) {
-		u64vec3 pos = u64vec3(posNorm * height * 1000);
-		float dryLake = 0;//clamp(pow(float(perlint64f(pos, 100000, 1000, 3)) * float(perlint64f(pos, 10000, 1000, 4)), 2), 0, 1);
-		float grayRocks = 0;//clamp(pow(float(perlint64f(pos, 200000, 1000, 3)) * float(perlint64f(pos, 10000, 1000, 4)), 2), 0, 1);
-		float pebbles = clamp(float(perlint64f(pos, 300000, 1000, 3)) + float(perlint64f(pos, 10000, 1000, 4)) * 0.5 - 0.5, 0, 1);
-		float stones = 0;//clamp(pow(float(perlint64f(pos, 400000, 1000, 3)) * float(perlint64f(pos, 10000, 1000, 4)), 2), 0, 1);
+		u64vec3 pos = u64vec3(posNorm * height * 100);
+		float dryLake = clamp(float(perlint64f(pos, 10000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
+		float grayRocks = clamp(float(perlint64f(pos, 20000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
+		float pebbles = clamp(float(perlint64f(pos, 30000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
+		float stones = clamp(float(perlint64f(pos, 40000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
 		return vec4(dryLake,grayRocks,pebbles,stones);
 	}
 	vec3 GetColor(dvec3 posNorm, double height, vec4 splat) {

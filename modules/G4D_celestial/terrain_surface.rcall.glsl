@@ -112,7 +112,7 @@ void main() {
 	// surface.color.rgb = vec3(blending[0], blending[1], blending[3]);
 	// surface.color.rgb = HeatmapClamped(blending[2]);
 	
-	float maxBlending = 0.1;
+	float maxBlending = 0.01;
 	for (int i = 0; i < 4; ++i) {
 		if (blending[i] > maxBlending) {
 			maxBlending = blending[i] * 0.5;
