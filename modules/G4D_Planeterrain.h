@@ -127,7 +127,7 @@ struct MakeTerrain_PARAMS {
 	size_t out_configs_size;
 	const char* out_computeShader;
 	const char* out_clutterComputeShader;
-	uint32_t out_clutterDensityPerChunk; // 0-64
+	uint32_t out_clutterDensityPerChunk; // 0-32
 	// const char* out_surfaceShader; // NOT WORKING YET BECAUSE IT WOULD ADD THE SURFACE TYPE AFTER THE RENDERER IS ALREADY INITIALIZED
 };
 

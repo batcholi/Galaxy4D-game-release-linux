@@ -39,6 +39,7 @@ void main() {
 	vertices[Xindex].vertex = float(finalPos.x);
 	vertices[Yindex].vertex = float(finalPos.y);
 	vertices[Zindex].vertex = float(finalPos.z);
+	// Color/Splat
 	vec4 splat = GetSplat(posNorm, height);
 	chunk.splats[currentIndex].splat = u8vec4(splat * 255.0);
 	colors[currentIndex].color = u8vec4(vec4(GetColor(posNorm, height, splat), 1) * 255.0f);

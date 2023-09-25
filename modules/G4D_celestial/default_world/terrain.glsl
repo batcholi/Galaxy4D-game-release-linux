@@ -114,7 +114,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 		color = mix(dirtColor, color, smoothstep(0.4, 0.6, float(heightRatio)));
 		color = mix(clayColor, color, smoothstep(0.25, 0.4, float(heightRatio)));
 		color = mix(sandColor, color, smoothstep(0.19, 0.25, float(heightRatio)));
-		color = mix(rockColor, color, smoothstep(0.00025, 0.0003, float(heightRatio)));
+		// color = mix(rockColor, color, smoothstep(0.00025, 0.0003, float(heightRatio)));
 		if (config.hydrosphere > 0) color = mix(underwaterColor, color, smoothstep(config.hydrosphere - 0.001, config.hydrosphere + 0.0002, float(heightRatio)));
 		color = mix(floorColor, color, smoothstep(0.0, 0.199, float(heightRatio)));
 		u64vec3 pos = u64vec3(posNorm * config.baseRadiusMillimeters + 200000000000.0);

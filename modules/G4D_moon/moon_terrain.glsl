@@ -16,16 +16,6 @@ BUFFER_REFERENCE_STRUCT(4) CelestialConfig {
 	CelestialConfig config;
 #endif
 
-double _getPolarity(dvec3 posNorm) {
-	return clamp(abs(dot(posNorm, dvec3(0,0,1))-0.2)-0.2, 0.0, 1.0);
-}
-
-double _moutainStep(double start, double end, double value) {
-	if (value > start && value < end) return mix(start, value, smoothstep(start, end, value));
-	if (value < start && value > end) return mix(start, value, smoothstep(start, end, value));
-	return value;
-}
-
 double Crater(u64vec3 pos, uint64_t stride, uint64_t variation) {
 	double t = smoothstep(0.96, 0.995, perlint64f(pos, stride, variation));
 	return max(smoothstep(0.0, 0.5, t * (0.9 + perlint64f(pos, stride / 25, variation, 3))), step(0.5, 1 - t) * 0.75) * smoothstep(1.0, 0.5, t * (0.9 + perlint64f(pos, stride / 10, variation, 3))) - 0.7;

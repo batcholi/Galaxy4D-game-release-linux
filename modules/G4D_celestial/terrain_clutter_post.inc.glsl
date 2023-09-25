@@ -1,6 +1,6 @@
 #extension GL_EXT_buffer_reference2 : require
 
-layout(local_size_x = CLUTTER_COMPUTE_SIZE_X) in;
+layout(local_size_x = CLUTTER_COMPUTE_SIZE) in;
 
 void main() {
 	uint index = gl_GlobalInvocationID.x;
@@ -10,7 +10,7 @@ void main() {
 	double barycentricHorizontal = double(RandomFloat(clutterSeed));
 	
 	// Size
-	vec3 rockSize = vec3(float(clamp(chunk.triangleSize, 0.05, 0.2))) * (0.5f + RandomFloat(clutterSeed) * 0.5) * vec3(
+	vec3 rockSize = vec3(float(clamp(chunk.triangleSize * 0.5, 0.05, 0.2))) * (0.5f + RandomFloat(clutterSeed) * 0.5) * vec3(
 		RandomFloat(clutterSeed),
 		RandomFloat(clutterSeed),
 		RandomFloat(clutterSeed)
@@ -33,7 +33,11 @@ void main() {
 	// Position
 	dvec3 posNorm = normalize(topLeftPos + (topRightPos - topLeftPos) * barycentricHorizontal + (bottomLeftPos - topLeftPos) * barycentricVertical);
 	double height = GetHeightMap(posNorm);
-	if (RandomFloat(clutterSeed) > GetClutterDensity(posNorm, height)) return;
+	
+	// Density
+	if (RandomFloat(clutterSeed) > GetClutterDensity(posNorm, height)) {
+		return;
+	}
 	
 	double altitude = height + double(rockSize.y)*0.4;
 	dvec3 posOnPlanet = posNorm * altitude;
