@@ -64,7 +64,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 	mountains = _moutainStep(variationf * 0.5, variationf * 0.6, mountains);
 	mountains = _moutainStep(variationf * 0.8, variationf * 0.85, mountains);
 	
-	double detail = perlint64f(pos * u64vec3(mix(vec3(4), vec3(7,1,1), smoothstep(variationf * 0.20015, variationf * 0.1999, mountains))), 1 M, 1 M, 6) * 0.075 M;
+	double detail = perlint64f(pos * u64vec3(mix(vec3(3), vec3(6,1,1), smoothstep(variationf * 0.20015, variationf * 0.1999, mountains))), 1 M, 1 M, 6) * 0.05 M;
 	
 	double height = config.baseRadiusMillimeters
 		+ max(0.0, mountains)
@@ -75,7 +75,15 @@ double GetHeightMap(dvec3 normalizedPos) {
 }
 
 #ifdef GLSL
-	vec3 GetColor(dvec3 posNorm, double height) {
+	vec4 GetSplat(dvec3 posNorm, double height) {
+		u64vec3 pos = u64vec3(posNorm * height * 1000);
+		float dryLake = 0;//clamp(pow(float(perlint64f(pos, 100000, 1000, 3)) * float(perlint64f(pos, 10000, 1000, 4)), 2), 0, 1);
+		float grayRocks = 0;//clamp(pow(float(perlint64f(pos, 200000, 1000, 3)) * float(perlint64f(pos, 10000, 1000, 4)), 2), 0, 1);
+		float pebbles = clamp(float(perlint64f(pos, 300000, 1000, 3)) + float(perlint64f(pos, 10000, 1000, 4)) * 0.5 - 0.5, 0, 1);
+		float stones = 0;//clamp(pow(float(perlint64f(pos, 400000, 1000, 3)) * float(perlint64f(pos, 10000, 1000, 4)), 2), 0, 1);
+		return vec4(dryLake,grayRocks,pebbles,stones);
+	}
+	vec3 GetColor(dvec3 posNorm, double height, vec4 splat) {
 		double heightRatio = (height - double(config.baseRadiusMillimeters)/TERRAIN_UNIT_MULTIPLIER) / config.heightVariationMillimeters * TERRAIN_UNIT_MULTIPLIER;
 		const vec3 snowColor = vec3(0.8, 0.9, 1.0);
 		const vec3 rockColor = vec3(0.2, 0.2, 0.2);

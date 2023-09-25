@@ -3,6 +3,10 @@
 #endif
 #include "game/graphics/common.inc.glsl"
 
+BUFFER_REFERENCE_STRUCT(4) TerrainSplatBuffer {
+	u8vec4 splat;
+};
+
 BUFFER_REFERENCE_STRUCT(16) ChunkBuffer {
 	aligned_f64mat4 transform;
 	aligned_f64mat4 inverseTransform;
@@ -13,6 +17,5 @@ BUFFER_REFERENCE_STRUCT(16) ChunkBuffer {
 	aligned_int32_t rightSign;
 	aligned_float32_t chunkSize;
 	aligned_uint32_t vertexSubdivisions;
-	aligned_float32_t _unused1;
-	aligned_float32_t _unused2;
+	BUFFER_REFERENCE_ADDR(TerrainSplatBuffer) splats;
 };
