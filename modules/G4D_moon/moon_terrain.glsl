@@ -78,4 +78,7 @@ double GetHeightMap(dvec3 posNorm) {
 		return clamp(mix(vec3(1), color, 1.1) * 0.7, vec3(0.05), vec3(1.0));
 		// return HeatmapClamped(float(heightRatio));
 	}
+	float GetClutterDensity(dvec3 posNorm, double height) {
+		return 0;
+	}
 #endif

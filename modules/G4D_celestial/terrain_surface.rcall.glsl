@@ -22,7 +22,7 @@ float NormalDetail(in vec3 pos) {
 
 const float textureNearDistance = 8;
 const float textureFarDistance = 32;
-const float textureMaxDistance = 100;
+const float textureMaxDistance = 200;
 
 ChunkBuffer chunk = ChunkBuffer(surface.geometryInfoData);
 

@@ -103,4 +103,18 @@ double GetHeightMap(dvec3 normalizedPos) {
 		color = mix(color, snowColor, smoothstep(0.5, 0.7, float(_getPolarity(posNorm))));
 		return color;
 	}
+	float GetClutterDensity(dvec3 posNorm, double height) {
+		u64vec3 pos = u64vec3(posNorm * height * 100);
+		float pebbles = clamp(float(perlint64f(pos, 30000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
+		double heightRatio = (height - double(config.baseRadiusMillimeters)/TERRAIN_UNIT_MULTIPLIER) / config.heightVariationMillimeters * TERRAIN_UNIT_MULTIPLIER;
+		return
+			// Underwater rocks
+			+ smoothstep(config.hydrosphere - 0.00003, config.hydrosphere - 0.0003, float(heightRatio))
+			
+			// Beach rocks
+			+ smoothstep(config.hydrosphere + 0.0003, config.hydrosphere + 0.00028, float(heightRatio))
+			* smoothstep(config.hydrosphere + 0.00009, config.hydrosphere + 0.0001, float(heightRatio))
+			* pebbles*pebbles
+		;
+	}
 #endif

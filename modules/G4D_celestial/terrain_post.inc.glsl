@@ -30,9 +30,9 @@ void main() {
 	dvec3 posNorm = normalize((chunk.transform * dvec4(GetVertex(currentIndex), 1)).xyz);
 	double height = GetHeightMap(posNorm);
 	
-	// // Additional Detail
+	// // Additional Detail from texture
 	// uint heightTexIndex = chunk.tex.y + 2/*height*/;
-	// vec2 uv = uvs[currentIndex].uv * round(chunk.chunkSize);
+	// vec2 uv = uvs[currentIndex].uv * max(1,round(chunk.chunkSize / 4));
 	// height += texture(textures[heightTexIndex], uv).r * 0.04 - 0.02;
 	
 	dvec3 finalPos = (chunk.inverseTransform * dvec4(posNorm * height, 1)).xyz;

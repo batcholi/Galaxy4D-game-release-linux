@@ -3,7 +3,7 @@
 #endif
 #include "terrain.common.inc.glsl"
 
-#define CLUTTER_COMPUTE_SIZE_X 128
+#define CLUTTER_COMPUTE_SIZE_X 256
 
 PUSH_CONSTANT_STRUCT TerrainClutterPushConstant {
 	aligned_f64vec3 topLeftPos;

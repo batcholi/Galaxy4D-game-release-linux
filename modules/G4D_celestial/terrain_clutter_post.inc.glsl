@@ -5,7 +5,6 @@ layout(local_size_x = CLUTTER_COMPUTE_SIZE_X) in;
 void main() {
 	uint index = gl_GlobalInvocationID.x;
 	uint clutterSeed = InitRandomSeed(uint(clutterData), index);
-	if (RandomFloat(clutterSeed) > 0.01) return;
 
 	double barycentricVertical = double(RandomFloat(clutterSeed));
 	double barycentricHorizontal = double(RandomFloat(clutterSeed));
@@ -32,9 +31,12 @@ void main() {
 	}
 	
 	// Position
-	dvec3 pos = normalize(topLeftPos + (topRightPos - topLeftPos) * barycentricHorizontal + (bottomLeftPos - topLeftPos) * barycentricVertical);
-	double altitude = GetHeightMap(pos) + double(rockSize.y)*0.4;
-	dvec3 posOnPlanet = pos * altitude;
+	dvec3 posNorm = normalize(topLeftPos + (topRightPos - topLeftPos) * barycentricHorizontal + (bottomLeftPos - topLeftPos) * barycentricVertical);
+	double height = GetHeightMap(posNorm);
+	if (RandomFloat(clutterSeed) > GetClutterDensity(posNorm, height)) return;
+	
+	double altitude = height + double(rockSize.y)*0.4;
+	dvec3 posOnPlanet = posNorm * altitude;
 	vec3 rockPos = vec4(chunk.inverseTransform * dvec4(posOnPlanet, 1)).xyz;
 	
 	AabbData rock = aabbData[index];
