@@ -282,9 +282,9 @@ void main() {
 	vec2 uv = surface.uv1 * max(1,round(chunk.chunkSize / 4));
 	// vec2 uv = surface.uv1 * round(chunk.chunkSize);
 	
-	surface.color.rgb = texture(textures[chunk.tex.x + Near+Diffuse], uv).rgb;
-	surface.specular = texture(textures[chunk.tex.x + Near+Specular], uv).r;
-	uint heightTexIndex = chunk.tex.x + Near+Height;
+	surface.color.rgb = texture(textures[chunk.tex.y + Near+Diffuse], uv).rgb;
+	surface.specular = texture(textures[chunk.tex.y + Near+Specular], uv).r;
+	uint heightTexIndex = chunk.tex.y + Near+Height;
 	
 	vec3 tangentZ = vec3(0,0,1);// normalize(cross(vec3(1,0,0), surface.normal));
 	vec3 tangentX = vec3(1,0,0);// normalize(cross(surface.normal, tangentZ));
