@@ -18,10 +18,15 @@ BUFFER_REFERENCE_STRUCT(4) TerrainColorBuffer {
 	u8vec4 color;
 };
 
+BUFFER_REFERENCE_STRUCT(4) TerrainUvBuffer {
+	vec2 uv;
+};
+
 PUSH_CONSTANT_STRUCT TerrainChunkPushConstant {
 	BUFFER_REFERENCE_ADDR(ChunkBuffer) chunk;
 	BUFFER_REFERENCE_ADDR(TerrainVertexBuffer) vertices;
 	BUFFER_REFERENCE_ADDR(TerrainNormalBuffer) normals;
 	BUFFER_REFERENCE_ADDR(TerrainColorBuffer) colors;
+	BUFFER_REFERENCE_ADDR(TerrainUvBuffer) uvs;
 	aligned_uint64_t celestial_configs;
 };

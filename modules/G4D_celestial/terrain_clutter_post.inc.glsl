@@ -5,6 +5,7 @@ layout(local_size_x = CLUTTER_COMPUTE_SIZE_X) in;
 void main() {
 	uint index = gl_GlobalInvocationID.x;
 	uint clutterSeed = InitRandomSeed(uint(clutterData), index);
+	if (RandomFloat(clutterSeed) > 0.01) return;
 
 	double barycentricVertical = double(RandomFloat(clutterSeed));
 	double barycentricHorizontal = double(RandomFloat(clutterSeed));
