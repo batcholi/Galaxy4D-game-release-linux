@@ -92,20 +92,17 @@ mat3 RotationMatrix(vec3 axis, float angle) {
 				oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c);
 }
 
-const float terrainClutterDetail = 1.0f;
-
-
 vec3 rockPos = (AABB_MAX + AABB_MIN) * 0.5;
 float approxDistanceFromCamera = length((MODELVIEW * vec4(rockPos, 1)).xyz);
 float epsilon = 0.0001 * approxDistanceFromCamera;
-int detailOctavesHighRes = int(round(5*smoothstep(terrainClutterDetail*20, 0, approxDistanceFromCamera)));
+int detailOctavesHighRes = int(round(5*smoothstep(renderer.terrain_clutter_detail*20, 0, approxDistanceFromCamera)));
 int detailOctavesMediumRes = detailOctavesHighRes / 2;
 int detailOctavesLowRes = detailOctavesHighRes / 4;
 int detailOctavesTextures = int(ceil(10*smoothstep(2, 0, approxDistanceFromCamera)));
 
 float minDetailSize = 0.001;
 float maxDetailSize = 0.02;
-float fadeDistance = terrainClutterDetail*25;
+float fadeDistance = renderer.terrain_clutter_detail*25;
 float maxDrawDistance = 200;
 
 vec3 rockSize = (AABB_MAX - AABB_MIN) * 0.5 * smoothstep(maxDrawDistance, fadeDistance, approxDistanceFromCamera);

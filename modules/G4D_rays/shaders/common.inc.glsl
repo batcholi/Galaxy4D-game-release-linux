@@ -185,7 +185,7 @@ struct RendererData {
 	
 	aligned_float32_t globalIlluminationVoxelSize;
 	aligned_int32_t atmosphere_raymarch_steps;
-	aligned_float32_t _unused2;
+	aligned_float32_t terrain_clutter_detail;
 	aligned_float32_t _unused3;
 	
 	aligned_uint32_t bluenoise_scalar;
