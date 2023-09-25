@@ -75,13 +75,31 @@ double GetHeightMap(dvec3 normalizedPos) {
 }
 
 #ifdef GLSL
+	float smoothCurve(float x) {
+		x = clamp(x,0,1);
+		// return x*x*(3-2*x);
+		return x*x*x*(x*(x*6-15)+10);
+	}
+	vec4 smoothCurve(vec4 x) {
+		x = clamp(x,vec4(0),vec4(1));
+		// return x*x*(3-2*x);
+		return x*x*x*(x*(x*6-15)+10);
+	}
 	vec4 GetSplat(dvec3 posNorm, double height) {
 		u64vec3 pos = u64vec3(posNorm * height * 100);
-		float dryLake = clamp(float(perlint64f(pos, 10000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
-		float grayRocks = clamp(float(perlint64f(pos, 20000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
+		double heightRatio = (height - double(config.baseRadiusMillimeters)/TERRAIN_UNIT_MULTIPLIER) / config.heightVariationMillimeters * TERRAIN_UNIT_MULTIPLIER;
+		float dryLake = clamp(float(perlint64f(pos, 10000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.4, 0, 1)
+			* smoothstep(config.hydrosphere + 0.0002, config.hydrosphere + 0.00019, float(heightRatio))
+			* smoothstep(config.hydrosphere + 0.000098, config.hydrosphere + 0.000105, float(heightRatio))
+		;
+		float grayRocks = clamp(float(perlint64f(pos, 20000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1)
+			* smoothstep(config.hydrosphere + 0.00025, config.hydrosphere + 0.0003, float(heightRatio))
+		;
 		float pebbles = clamp(float(perlint64f(pos, 30000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
-		float stones = clamp(float(perlint64f(pos, 40000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
-		return vec4(dryLake,grayRocks,pebbles,stones);
+		float stones = clamp(float(perlint64f(pos, 40000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1)
+			* smoothstep(config.hydrosphere + 0.00008, config.hydrosphere + 0.0001, float(heightRatio))
+		;
+		return smoothCurve(vec4(dryLake,grayRocks,pebbles,stones));
 	}
 	vec3 GetColor(dvec3 posNorm, double height, vec4 splat) {
 		double heightRatio = (height - double(config.baseRadiusMillimeters)/TERRAIN_UNIT_MULTIPLIER) / config.heightVariationMillimeters * TERRAIN_UNIT_MULTIPLIER;
@@ -96,6 +114,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 		color = mix(dirtColor, color, smoothstep(0.4, 0.6, float(heightRatio)));
 		color = mix(clayColor, color, smoothstep(0.25, 0.4, float(heightRatio)));
 		color = mix(sandColor, color, smoothstep(0.19, 0.25, float(heightRatio)));
+		color = mix(rockColor, color, smoothstep(0.00025, 0.0003, float(heightRatio)));
 		if (config.hydrosphere > 0) color = mix(underwaterColor, color, smoothstep(config.hydrosphere - 0.001, config.hydrosphere + 0.0002, float(heightRatio)));
 		color = mix(floorColor, color, smoothstep(0.0, 0.199, float(heightRatio)));
 		u64vec3 pos = u64vec3(posNorm * config.baseRadiusMillimeters + 200000000000.0);
@@ -106,6 +125,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 	float GetClutterDensity(dvec3 posNorm, double height) {
 		u64vec3 pos = u64vec3(posNorm * height * 100);
 		float pebbles = clamp(float(perlint64f(pos, 30000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
+		float dryLake = clamp(float(perlint64f(pos, 10000, 255, 3)) + float(perlint64f(pos, 1000, 255, 4)) * 0.5 - 0.5, 0, 1);
 		double heightRatio = (height - double(config.baseRadiusMillimeters)/TERRAIN_UNIT_MULTIPLIER) / config.heightVariationMillimeters * TERRAIN_UNIT_MULTIPLIER;
 		return
 			// Underwater rocks
@@ -114,7 +134,7 @@ double GetHeightMap(dvec3 normalizedPos) {
 			// Beach rocks
 			+ smoothstep(config.hydrosphere + 0.0003, config.hydrosphere + 0.00028, float(heightRatio))
 			* smoothstep(config.hydrosphere + 0.00009, config.hydrosphere + 0.0001, float(heightRatio))
-			* pebbles*pebbles
+			* smoothCurve(pebbles-dryLake*0.25)
 		;
 	}
 #endif
