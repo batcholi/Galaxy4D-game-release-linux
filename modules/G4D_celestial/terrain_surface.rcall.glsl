@@ -20,7 +20,9 @@ float NormalDetail(in vec3 pos) {
 	_normal = normalize(_TBN * _bump);\
 }
 
-const float textureMaxDistance = 200;
+const float textureNearDistance = 8;
+const float textureFarDistance = 32;
+const float textureMaxDistance = 100;
 
 ChunkBuffer chunk = ChunkBuffer(surface.geometryInfoData);
 
@@ -60,6 +62,10 @@ float smoothCurve(float x) {
 }
 
 void main() {
+	if (surface.distance > textureMaxDistance) {
+		return;
+	}
+	
 	vec4 splat = ComputeSplat(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
 	surface.uv1 = ComputeSurfaceUV1(surface.geometries, surface.geometryIndex, surface.primitiveIndex, surface.barycentricCoords);
 	vec2 uv = surface.uv1 * max(1,round(chunk.chunkSize / 4));
@@ -68,8 +74,11 @@ void main() {
 	vec3 color = surface.color.rgb;
 	vec3 normal = surface.normal;
 	
+	float normalDistanceRatio = pow(clamp(surface.distance / textureMaxDistance, 0, 1), 0.25);
+	
 	// Base terrain
 	BUMP(NormalDetail, surface.localPosition * 50, surface.normal, 0.05)
+	surface.normal = mix(surface.normal, normal, normalDistanceRatio);
 	
 	float splats[4];
 	float blending[4];
@@ -109,15 +118,16 @@ void main() {
 		speculars[3] = chunk.tex.w + Specular;
 	}
 	
-	// surface.color.rgb = vec3(blending[0], blending[1], blending[3]);
-	// surface.color.rgb = HeatmapClamped(blending[2]);
-	
 	float maxBlending = 0.01;
 	for (int i = 0; i < 4; ++i) {
 		if (blending[i] > maxBlending) {
 			maxBlending = blending[i] * 0.5;
-			surface.color.rgb = mix(color, texture(textures[nonuniformEXT(colors[i])], uv).rgb, splats[i]);
-			surface.specular = mix(surface.specular, texture(textures[nonuniformEXT(speculars[i])], uv).r, splats[i]);
+			vec3 colorNear = texture(textures[nonuniformEXT(colors[i])], uv).rgb;
+			float specularNear = texture(textures[nonuniformEXT(speculars[i])], uv).r;
+			vec3 colorFar = texture(textures[nonuniformEXT(colors[i] + 1)], uvFar).rgb;
+			float specularFar = texture(textures[nonuniformEXT(speculars[i] + 1)], uvFar).r;
+			surface.color.rgb = mix(color, mix(colorNear, colorFar, smoothstep(textureNearDistance, textureFarDistance, surface.distance)), splats[i] * (1 - surface.distance / textureMaxDistance));
+			surface.specular = mix(surface.specular, mix(specularNear, specularFar, smoothstep(textureNearDistance, textureFarDistance, surface.distance)), splats[i] * (1 - surface.distance / textureMaxDistance));
 			float altitudeTop = textureOffset(textures[nonuniformEXT(heights[i])], uv, ivec2(0,-1)).r;
 			float altitudeBottom = textureOffset(textures[nonuniformEXT(heights[i])], uv, ivec2(0,+1)).r;
 			float altitudeLeft = textureOffset(textures[nonuniformEXT(heights[i])], uv, ivec2(-1,0)).r;
@@ -126,7 +136,7 @@ void main() {
 			vec3 tangentZ = normalize(cross(vec3(1,0,0), normal));
 			vec3 tangentX = normalize(cross(normal, tangentZ));
 			mat3 TBN = mat3(tangentX, normal, tangentZ);
-			surface.normal = normalize(TBN * bump);
+			surface.normal = normalize(mix(TBN * bump, surface.normal, normalDistanceRatio));
 		}
 	}
 	
