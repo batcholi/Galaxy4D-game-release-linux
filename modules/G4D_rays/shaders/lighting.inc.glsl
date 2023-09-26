@@ -736,7 +736,7 @@ void ApplyDefaultLighting(in uint giObjectIndex, in vec3 giPos, in vec3 giRayOri
 				ray.color.rgb += albedo * ambient;
 			}
 		} else {
-			ray.color.rgb += albedo * vec3(smoothstep(20, 0, realDistance)) * 0.25;
+			ray.color.rgb += albedo * vec3(pow(smoothstep(GI_MAX_DISTANCE*2, 0, realDistance), 4)) * 0.05;
 		}
 	}
 	
