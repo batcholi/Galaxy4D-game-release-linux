@@ -4,10 +4,6 @@
 
 hitAttributeEXT vec3 hitAttribs;
 
-// float NormalDetail(in vec3 pos) {
-// 	return SimplexFractal(pos * 0.3, 2);
-// }
-
 void main() {
 	
 	ray.hitDistance = gl_HitTEXT;

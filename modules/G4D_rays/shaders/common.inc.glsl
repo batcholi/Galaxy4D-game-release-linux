@@ -93,6 +93,7 @@
 		/*  8	RENDERABLE_TYPE_PLASMA */			RAYTRACE_MASK_PLASMA,
 		/*  9	RENDERABLE_TYPE_LIGHT_BOX */		RAYTRACE_MASK_LIGHT,
 		/* 10	RENDERABLE_TYPE_CLUTTER_PIPE */		RAYTRACE_MASK_CLUTTER,
+		/* 11	RENDERABLE_TYPE_CLUTTER_ROCK */		RAYTRACE_MASK_CLUTTER,
 	};
 #endif
 
@@ -184,7 +185,7 @@ struct RendererData {
 	
 	aligned_float32_t globalIlluminationVoxelSize;
 	aligned_int32_t atmosphere_raymarch_steps;
-	aligned_float32_t _unused2;
+	aligned_float32_t terrain_clutter_detail;
 	aligned_float32_t _unused3;
 	
 	aligned_uint32_t bluenoise_scalar;

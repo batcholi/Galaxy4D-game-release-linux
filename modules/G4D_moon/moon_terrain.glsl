@@ -16,23 +16,13 @@ BUFFER_REFERENCE_STRUCT(4) CelestialConfig {
 	CelestialConfig config;
 #endif
 
-double _getPolarity(dvec3 normalizedPos) {
-	return clamp(abs(dot(normalizedPos, dvec3(0,0,1))-0.2)-0.2, 0.0, 1.0);
-}
-
-double _moutainStep(double start, double end, double value) {
-	if (value > start && value < end) return mix(start, value, smoothstep(start, end, value));
-	if (value < start && value > end) return mix(start, value, smoothstep(start, end, value));
-	return value;
-}
-
 double Crater(u64vec3 pos, uint64_t stride, uint64_t variation) {
 	double t = smoothstep(0.96, 0.995, perlint64f(pos, stride, variation));
 	return max(smoothstep(0.0, 0.5, t * (0.9 + perlint64f(pos, stride / 25, variation, 3))), step(0.5, 1 - t) * 0.75) * smoothstep(1.0, 0.5, t * (0.9 + perlint64f(pos, stride / 10, variation, 3))) - 0.7;
 }
 
-double GetHeightMap(dvec3 normalizedPos) {
-	u64vec3 pos = u64vec3(normalizedPos * config.baseRadiusMillimeters + 10000000000.0); // this supports planets with a maximum radius of 10'000 km and ground precision of 1 cm
+double GetHeightMap(dvec3 posNorm) {
+	u64vec3 pos = u64vec3(posNorm * config.baseRadiusMillimeters + 10000000000.0); // this supports planets with a maximum radius of 10'000 km and ground precision of 1 cm
 	
 	uint64_t variation = uint64_t(config.heightVariationMillimeters);
 	double variationf = double(variation);
@@ -62,8 +52,11 @@ double GetHeightMap(dvec3 normalizedPos) {
 }
 
 #ifdef GLSL
-	vec3 GetColor(dvec3 normalizedPos, double height) {
-		u64vec3 pos = u64vec3(normalizedPos * config.baseRadiusMillimeters + 10000000000.0); // this supports planets with a maximum radius of 10'000 km and ground precision of 1 cm
+	vec4 GetSplat(dvec3 posNorm, double height) {
+		return vec4(0);
+	}
+	vec3 GetColor(dvec3 posNorm, double height, vec4 splat) {
+		u64vec3 pos = u64vec3(posNorm * config.baseRadiusMillimeters + 10000000000.0); // this supports planets with a maximum radius of 10'000 km and ground precision of 1 cm
 		uint64_t variation = uint64_t(config.heightVariationMillimeters);
 		double heightRatio = (height - double(config.baseRadiusMillimeters)/TERRAIN_UNIT_MULTIPLIER) / config.heightVariationMillimeters * TERRAIN_UNIT_MULTIPLIER;
 		float continents = float(perlint64f(pos, 1000 KM, variation, 2)) * 0.6 - float(perlint64f(pos, 250 KM, variation, 2)) * 0.2 + float(perlint64f(pos, 50 KM, variation, 4)) * 0.4;
@@ -74,5 +67,8 @@ double GetHeightMap(dvec3 normalizedPos) {
 		color *= mix(float(perlint64f(pos, 1 M / 8, 1 M / 8, 6)), 1.0, 0.7);
 		return clamp(mix(vec3(1), color, 1.1) * 0.7, vec3(0.05), vec3(1.0));
 		// return HeatmapClamped(float(heightRatio));
+	}
+	float GetClutterDensity(dvec3 posNorm, double height) {
+		return 0;
 	}
 #endif
